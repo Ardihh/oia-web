@@ -362,7 +362,7 @@ export function Contact({ locale }: ContactProps) {
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[6px] bg-accent hover:bg-accent-hover disabled:opacity-60 text-ink font-semibold text-xs uppercase tracking-wider transition-colors"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[6px] bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-semibold text-xs uppercase tracking-wider transition-colors"
                 >
                   {status === 'loading' ? (
                     <>

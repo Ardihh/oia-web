@@ -86,7 +86,7 @@ export function Hero({ locale }: HeroProps) {
               <a
                 href="#admission"
                 onClick={(e) => handleHeroNav(e, 'admission')}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-[6px] bg-accent hover:bg-accent-hover text-ink font-semibold text-sm transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-[6px] bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
               >
                 <span>{ctaStudy}</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />

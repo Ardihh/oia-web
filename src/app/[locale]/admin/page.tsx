@@ -1816,7 +1816,7 @@ export default function AdminPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-unram-900 text-white text-xs font-bold hover:bg-unram-800"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Tambah Poin Misi</span>
+                  <span>Tambah Poin Misi</span>
                 </button>
               </div>
 
@@ -1895,10 +1895,10 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={addStatItem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs uppercase"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Tambah Kartu Statistik</span>
+                  <span>Tambah Kartu Statistik</span>
                 </button>
                 <button
                   type="button"
@@ -2031,10 +2031,10 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={addServiceItem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs uppercase"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Tambah Layanan Baru</span>
+                  <span>Tambah Layanan Baru</span>
                 </button>
                 <button
                   type="button"
@@ -2155,10 +2155,10 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={addFaqItem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs uppercase"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Tambah Pertanyaan Baru</span>
+                  <span>Tambah Pertanyaan Baru</span>
                 </button>
                 <button
                   type="button"

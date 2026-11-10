@@ -153,7 +153,7 @@ export function Navbar({ locale }: NavbarProps) {
             <a
               href="#contact"
               onClick={(e) => handleNavClick(e, '#contact')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-ink bg-accent hover:bg-accent-hover rounded-[6px] transition-colors focus-visible:ring-2 focus-visible:ring-unram-600 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors focus-visible:ring-2 focus-visible:ring-unram-600 focus-visible:ring-offset-2"
             >
               <span>{t('contactBtn')}</span>
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
@@ -205,7 +205,7 @@ export function Navbar({ locale }: NavbarProps) {
                 <a
                   href="#contact"
                   onClick={(e) => handleNavClick(e, '#contact')}
-                  className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold uppercase tracking-wider text-ink bg-accent hover:bg-accent-hover rounded-[6px] transition-colors"
+                  className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors"
                 >
                   <span>{t('contactBtn')}</span>
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />

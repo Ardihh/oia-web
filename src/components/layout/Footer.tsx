@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowUp, ExternalLink } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
+import { useSiteContent } from '@/context/ContentContext';
 
 interface FooterProps {
   locale: string;
@@ -17,6 +18,13 @@ export function Footer({ locale }: FooterProps) {
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
   const tContact = useTranslations('contact');
+  const { content } = useSiteContent();
+  const lang = locale === 'en' ? 'en' : 'id';
+
+  const addressContent = content?.contact?.addressContent?.[lang] || tContact('info.addressContent');
+  const emailValue = content?.contact?.emailValue || tContact('info.emailValue');
+  const phoneValue = content?.contact?.phoneValue || tContact('info.phoneValue');
+  const hoursValue = content?.contact?.hoursValue?.[lang] || tContact('info.hoursValue');
 
   const [isAdminPath, setIsAdminPath] = useState(false);
 
@@ -131,17 +139,17 @@ export function Footer({ locale }: FooterProps) {
               {tNav('links.contact')}
             </h4>
             <div className="space-y-2 text-xs leading-relaxed text-blue-200/75">
-              <p>{tContact('info.addressContent')}</p>
+              <p>{addressContent}</p>
               <p>
                 <a
-                  href={`mailto:${tContact('info.emailValue')}`}
+                  href={`mailto:${emailValue}`}
                   className="text-paper hover:underline underline-offset-4"
                 >
-                  {tContact('info.emailValue')}
+                  {emailValue}
                 </a>
               </p>
-              <p>{tContact('info.phoneValue')}</p>
-              <p className="text-blue-300/60 pt-1">{tContact('info.hoursValue')}</p>
+              <p>{phoneValue}</p>
+              <p className="text-blue-300/60 pt-1">{hoursValue}</p>
             </div>
           </div>
         </div>

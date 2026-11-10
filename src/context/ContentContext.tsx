@@ -567,6 +567,28 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       console.error('Error initializing site content:', e);
       setContent(defaultSiteContent);
     }
+
+    const handleSync = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isSiteContentValid(parsed)) {
+            setContent(parsed);
+          }
+        }
+      } catch (e) {
+        console.error('Error syncing content:', e);
+      }
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('unram_content_changed', handleSync);
+
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('unram_content_changed', handleSync);
+    };
   }, []);
 
   const updateContent = (newContent: SiteContent) => {
