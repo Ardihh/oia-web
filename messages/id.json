@@ -1,0 +1,280 @@
+{
+  "common": {
+    "siteTitle": "Kantor Urusan Internasional - Universitas Mataram",
+    "siteTagline": "Pintu Gerbang Mobilitas Global dan Kemitraan Internasional UNRAM",
+    "unramName": "Universitas Mataram",
+    "unramShort": "UNRAM",
+    "officeName": "Kantor Urusan Internasional",
+    "officeShort": "KUI UNRAM",
+    "skipToContent": "Lompat ke konten utama",
+    "backToTop": "Kembali ke atas",
+    "allRightsReserved": "Hak cipta dilindungi undang-undang."
+  },
+  "nav": {
+    "brandName": "Kantor Urusan Internasional",
+    "brandSub": "Universitas Mataram",
+    "links": {
+      "about": "Tentang",
+      "services": "Layanan",
+      "stats": "Statistik",
+      "partners": "Mitra",
+      "news": "Berita",
+      "admission": "Penerimaan",
+      "faq": "FAQ",
+      "contact": "Kontak"
+    },
+    "contactBtn": "Hubungi Kami",
+    "openMenu": "Buka menu navigasi",
+    "closeMenu": "Tutup menu navigasi",
+    "switchLanguage": "Ganti bahasa"
+  },
+  "hero": {
+    "badge": "Pintu Gerbang Internasionalisasi UNRAM",
+    "titlePrefix": "Membuka Peluang Dunia dari",
+    "titleHighlight": "Lombok untuk Masa Depan Global",
+    "subtitle": "KUI Universitas Mataram memfasilitasi pertukaran mahasiswa, kolaborasi riset internasional, dan kemitraan akademik lintas benua di jantung Nusa Tenggara Barat.",
+    "ctaStudy": "Kuliah di UNRAM",
+    "ctaPartner": "Kemitraan Institusi",
+    "trustPill": "TODO: replace (00+ Mitra Universitas Dunia • Akreditasi Unggul)"
+  },
+  "about": {
+    "kicker": "Profil Lembaga",
+    "title": "Menghubungkan Civitas Akademika UNRAM dengan Komunitas Global",
+    "description1": "Kantor Urusan Internasional (KUI) Universitas Mataram merupakan unit pelaksana strategis di bawah kepemimpinan Rektor yang bertugas merencanakan, mengelola, dan mengembangkan kerja sama internasional serta program mobilitas akademik.",
+    "description2": "Berlokasi di pulau Lombok yang dinamis dan berwawasan lingkungan, kami berkomitmen menghadirkan pengalaman studi multikultural yang kaya, aman, dan berdaya saing bagi mahasiswa domestik maupun mancanegara.",
+    "visionTitle": "Visi",
+    "visionDesc": "TODO: replace (Menjadi pusat layanan internasional yang unggul, terpercaya, dan berdaya saing global berbasis riset dan kepulauan pada tahun 2030).",
+    "missionTitle": "Misi",
+    "missionFullTitle": "Rincian Misi Strategis",
+    "missionItems": [
+      "TODO: replace (Meningkatkan kuantitas dan kualitas kemitraan akademik internasional berbasis kesetaraan dan keberlanjutan).",
+      "TODO: replace (Memfasilitasi mobilitas inbound dan outbound bagi mahasiswa, dosen, serta tenaga kependidikan UNRAM).",
+      "TODO: replace (Memberikan pelayanan prima terkait keimigrasian, adaptasi budaya, dan kenyamanan mahasiswa asing).",
+      "TODO: replace (Mempromosikan potensi keunggulan riset keanekaragaman hayati dan kepulauan UNRAM ke kancah global)."
+    ],
+    "messageTitle": "Sambutan Kepala Kantor",
+    "messageQuote": "TODO: replace (\"Selamat datang di Universitas Mataram. Kami bersemangat menyambut mahasiswa dan peneliti dari seluruh penjuru dunia untuk belajar, bertumbuh, dan berkolaborasi bersama kami di Lombok.\")",
+    "messageAuthor": "TODO: replace (Nama Kepala Kantor, Ph.D)",
+    "messageRole": "Kepala Kantor Urusan Internasional",
+    "messageOffice": "Universitas Mataram"
+  },
+  "services": {
+    "kicker": "Layanan Kami",
+    "title": "Dukungan Komprehensif Mobilitas Internasional",
+    "subtitle": "Kami menyediakan layanan terpadu mulai dari konsultasi program, fasilitasi izin tinggal, hingga inisiasi MoU kemitraan antar lembaga.",
+    "learnMore": "Pelajari Layanan",
+    "items": {
+      "inbound": {
+        "title": "Mahasiswa Asing (Inbound)",
+        "desc": "Bimbingan pendaftaran program gelar, non-gelar, short-course budaya Sasak/Lombok, dan orientasi kampus ramah pelajar internasional."
+      },
+      "outbound": {
+        "title": "Mobilitas Keluar (Outbound)",
+        "desc": "Fasilitasi program IISMA, pertukaran pelajar semesteran, konferensi pemuda global, dan magang luar negeri untuk mahasiswa UNRAM."
+      },
+      "partnerships": {
+        "title": "Kemitraan & MoU",
+        "desc": "Inisiasi, perumusan, legalitas, serta evaluasi naskah kerja sama (MoU/MoA) dengan universitas dan lembaga mitra terkemuka dunia."
+      },
+      "scholarships": {
+        "title": "Informasi Beasiswa",
+        "desc": "Pusat informasi beasiswa mobilitas global (Erasmus+, MEXT, KNB, Fulbright, LPDP) dan pelatihan persiapan seleksi berkas."
+      },
+      "scholars": {
+        "title": "Visiting Scholar & Peneliti",
+        "desc": "Penyambutan dan administrasi profesor tamu, peneliti internasional, serta kolaborasi riset saintifik di laboratorium UNRAM."
+      },
+      "visa": {
+        "title": "Layanan Izin Tinggal & Visa",
+        "desc": "Bantuan rekomendasi izin belajar (Study Permit Kemendikbudristek), visa tinggal terbatas (KITAS/e-ITAS), dan lapor kepolisian/imigrasi."
+      }
+    }
+  },
+  "stats": {
+    "kicker": "Dampak Global",
+    "title": "Jejak Rekam Internasionalisasi Kami",
+    "subtitle": "Komitmen nyata Universitas Mataram dalam membangun jejaring akademik lintas batas.",
+    "items": {
+      "partners": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Mitra Universitas Global",
+        "desc": "TODO: replace (Kerja sama aktif di Asia, Eropa, dan Australia)"
+      },
+      "countries": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Negara Asal & Tujuan",
+        "desc": "TODO: replace (Jaringan pertukaran mahasiswa dan dosen)"
+      },
+      "students": {
+        "value": "000",
+        "suffix": "+",
+        "label": "Mahasiswa Difasilitasi",
+        "desc": "TODO: replace (Mobilitas inbound dan outbound tahunan)"
+      },
+      "programs": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Program Internasional",
+        "desc": "TODO: replace (Gelar ganda, summer course, riset bersama)"
+      }
+    }
+  },
+  "partners": {
+    "kicker": "Jejaring Kolaborasi",
+    "badge": "Aliansi Akademik Global",
+    "title": "Mitra Universitas & Institusi Internasional",
+    "subtitle": "Kami bangga berkolaborasi dengan institusi pendidikan tinggi terkemuka dan konsorsium global dalam memajukan tridharma perguruan tinggi.",
+    "becomePartnerTitle": "Tertarik Bermitra dengan Universitas Mataram?",
+    "becomePartnerDesc": "Kami membuka peluang kerja sama dalam riset kepulauan, pertukaran pelajar, dan program transfer kredit.",
+    "becomePartnerBtn": "Inisiasi Kerja Sama (MoU)"
+  },
+  "news": {
+    "kicker": "Kabar Terkini",
+    "title": "Berita & Agenda Internasional",
+    "subtitle": "Ikuti perkembangan kegiatan pertukaran, kedatangan delegasi asing, dan agenda global terbaru di UNRAM.",
+    "readMore": "Baca Selengkapnya",
+    "items": [
+      {
+        "id": "1",
+        "category": "Program Mobilitas",
+        "date": "TODO: replace (10 Nov 2026)",
+        "title": "TODO: replace (Sosialisasi Seleksi IISMA UNRAM Menuju Universitas Top Dunia)",
+        "summary": "TODO: replace (Ratusan mahasiswa UNRAM antusias mengikuti pembekalan esai, wawancara, dan tes kecakapan bahasa Inggris bersama alumni program)."
+      },
+      {
+        "id": "2",
+        "category": "Kemitraan Global",
+        "date": "TODO: replace (04 Nov 2026)",
+        "title": "TODO: replace (Penandatanganan Nota Kesepahaman Riset Bersama Konsorsium Internasional)",
+        "summary": "TODO: replace (UNRAM memperluas kolaborasi riset kelautan dan keanekaragaman hayati Lombok bersama perwakilan universitas mitra asing)."
+      },
+      {
+        "id": "3",
+        "category": "Inbound Students",
+        "date": "TODO: replace (28 Okt 2026)",
+        "title": "TODO: replace (Penyambutan Mahasiswa Asing Program Indonesian Culture & Language)",
+        "summary": "TODO: replace (KUI UNRAM menggelar sesi orientasi budaya, tata tertib kampus, serta kelas adaptasi bagi mahasiswa asing semester ini)."
+      }
+    ]
+  },
+  "admission": {
+    "kicker": "Langkah Pendaftaran",
+    "stage": "Tahap",
+    "formatNote": "PDF • Format Resmi KUI UNRAM",
+    "title": "Alur Bergabung ke Universitas Mataram",
+    "subtitle": "Panduan ringkas bagi calon mahasiswa internasional untuk memulai perjalanan akademik di Lombok.",
+    "steps": [
+      {
+        "step": "01",
+        "title": "Pilih Program Studi",
+        "desc": "Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM."
+      },
+      {
+        "step": "02",
+        "title": "Persiapan Dokumen",
+        "desc": "Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi."
+      },
+      {
+        "step": "03",
+        "title": "Pengajuan Berkas Online",
+        "desc": "Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM."
+      },
+      {
+        "step": "04",
+        "title": "Izin Belajar & Kedatangan",
+        "desc": "Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS)."
+      }
+    ],
+    "downloadGuide": "Unduh Panduan Lengkap Mahasiswa Asing (PDF)",
+    "downloadBtn": "TODO: replace (Unduh Handbook)"
+  },
+  "faq": {
+    "kicker": "Tanya Jawab",
+    "title": "Pertanyaan yang Sering Diajukan",
+    "subtitle": "Jawaban lengkap atas pertanyaan umum seputar studi internasional, beasiswa, dan prosedur tinggal di Lombok.",
+    "items": [
+      {
+        "q": "Apakah Universitas Mataram menyediakan beasiswa untuk mahasiswa internasional?",
+        "a": "TODO: replace (Ya, mahasiswa internasional dapat mendaftar melalui beasiswa Kemitraan Negara Berkembang (KNB) dari Pemerintah Indonesia, beasiswa bilateral, atau program bebas biaya kuliah parsial dari UNRAM sesuai kualifikasi akademik)."
+      },
+      {
+        "q": "Bagaimana prosedur permohonan visa dan izin tinggal bagi mahasiswa asing?",
+        "a": "TODO: replace (Setelah diterima resmi, KUI UNRAM akan mengurus Rekomendasi Izin Belajar ke Kementerian. Selanjutnya, tim kami memandu proses permohonan e-Visa tinggal terbatas hingga kedatangan di Bandara Internasional Lombok)."
+      },
+      {
+        "q": "Apakah tersedia akomodasi atau asrama mahasiswa di sekitar kampus UNRAM?",
+        "a": "TODO: replace (UNRAM menyediakan Asrama Mahasiswa (Rusunawa) di dalam area kampus dan staf KUI siap mendampingi pencarian tempat tinggal alternatif seperti kos atau homestay yang aman dan terjangkau di sekitar Kota Mataram)."
+      },
+      {
+        "q": "Bagaimana mahasiswa UNRAM dapat mendaftar program pertukaran ke luar negeri (IISMA / Outbound)?",
+        "a": "TODO: replace (Mahasiswa aktif UNRAM dapat memantau info seleksi di situs KUI, mengikuti workshop pembekalan, dan mengajukan rekomendasi resmi universitas ke kantor kami sebelum batas tenggat program nasional)."
+      },
+      {
+        "q": "Bahasa apa yang digunakan dalam proses perkuliahan untuk mahasiswa internasional?",
+        "a": "TODO: replace (Tersedia kelas internasional berbahasa pengantar Inggris untuk program studi tertentu. Bagi program reguler, UNRAM menyediakan kursus Bahasa Indonesia bagi Penutur Asing (BIPA) secara intensif)."
+      },
+      {
+        "q": "Bagaimana institusi luar negeri dapat menginisiasi penandatanganan MoU dengan UNRAM?",
+        "a": "TODO: replace (Perwakilan institusi dapat mengirimkan draf proposal kerja sama dan surat pengantar melalui formulir kontak kami atau via email resmi KUI di io@unram.ac.id untuk ditindaklanjuti bagian hukum dan kerja sama)."
+      }
+    ]
+  },
+  "contact": {
+    "kicker": "Hubungi Kami",
+    "title": "Mari Terhubung dengan KUI UNRAM",
+    "subtitle": "Punya pertanyaan seputar studi, izin tinggal, atau ingin menjalin kemitraan institusional? Tim kami siap membantu Anda.",
+    "form": {
+      "title": "Kirim Pesan Langsung",
+      "subtitle": "Kami biasanya membalas dalam 1-2 hari kerja.",
+      "nameLabel": "Nama Lengkap",
+      "namePlaceholder": "Masukkan nama lengkap Anda",
+      "emailLabel": "Alamat Email",
+      "emailPlaceholder": "nama@institusi.ac.id",
+      "subjectLabel": "Topik / Subjek",
+      "subjectPlaceholder": "Pilih atau tuliskan topik pesan",
+      "subjectOptions": {
+        "study": "Pendaftaran Mahasiswa Asing (Inbound)",
+        "outbound": "Program Pertukaran Mahasiswa UNRAM (Outbound)",
+        "partnership": "Kemitraan Akademik / Kerja Sama MoU",
+        "visa": "Izin Belajar & Keimigrasian",
+        "other": "Lainnya"
+      },
+      "messageLabel": "Pesan",
+      "messagePlaceholder": "Tuliskan rincian pertanyaan atau maksud kerja sama Anda di sini...",
+      "submitBtn": "Kirim Pesan",
+      "sendingBtn": "Mengirim Pesan...",
+      "successTitle": "Pesan Berhasil Dikirim!",
+      "successDesc": "Terima kasih telah menghubungi Kantor Urusan Internasional UNRAM. Kami akan segera merespons melalui email Anda.",
+      "errorTitle": "Gagal Mengirim Pesan",
+      "errorDesc": "Terjadi kendala saat mengirim pesan. Silakan coba kembali atau hubungi kami langsung via email resmi.",
+      "sendAnother": "Kirim pesan lainnya"
+    },
+    "info": {
+      "addressTitle": "Alamat Kantor",
+      "addressContent": "Gedung Rektorat UNRAM Lantai 1, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
+      "emailTitle": "Email Resmi",
+      "emailValue": "io@unram.ac.id",
+      "phoneTitle": "Telepon / WhatsApp",
+      "phoneValue": "+62 (370) 633007",
+      "hoursTitle": "Jam Layanan Kantor",
+      "hoursValue": "Senin - Jumat: 08.00 - 16.00 WITA (GMT+8)",
+      "socialTitle": "Media Sosial",
+      "mapTitle": "Peta Lokasi Kantor"
+    }
+  },
+  "footer": {
+    "aboutTitle": "Kantor Urusan Internasional",
+    "aboutDesc": "Unit koordinasi dan pengembangan kerja sama internasional, mobilitas akademik, serta layanan kemahasiswaan global di Universitas Mataram, Lombok, Nusa Tenggara Barat.",
+    "quickLinksTitle": "Navigasi Cepat",
+    "unramLinksTitle": "Portal UNRAM",
+    "unramMainSite": "Situs Utama UNRAM",
+    "unramLibrary": "Perpustakaan Pusat",
+    "unramLppm": "LPPM UNRAM (Riset)",
+    "unramAcademic": "Portal SIAKAD",
+    "emergencyTitle": "Bantuan Darurat Mahasiswa Asing",
+    "emergencyDesc": "Layanan hotline 24/7 bagi mahasiswa internasional yang membutuhkan bantuan mendesak di Lombok.",
+    "copyright": "© 2026 Kantor Urusan Internasional Universitas Mataram. Semua Hak Dilindungi."
+  }
+}

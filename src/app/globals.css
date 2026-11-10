@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brand Blues */
+  --blue-50:  #F0F4FA;
+  --blue-100: #DCE6F4;
+  --blue-200: #B9CDE9;
+  --blue-300: #8DAAD6;
+  --blue-400: #5C82BE;
+  --blue-500: #3A63A5;
+  --blue-600: #2A4E8C;
+  --blue-700: #213F73;
+  --blue-800: #1B335D;
+  --blue-900: #142547;
+  --blue-950: #0C1830;
+
+  /* Neutrals */
+  --paper:    #FAF9F6;
+  --surface:  #FFFFFF;
+  --ink:      #0F1A2E;
+  --ink-soft: #4B5669;
+  --hairline: #E4E2DB;
+
+  /* Accent */
+  --accent:   #E0A82E;
+  --accent-hover: #D29B24;
+
+  /* Fonts */
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-body: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--paper);
+    color: var(--ink);
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Accessible focus states (DESIGN.md: 2px outline with 2px offset) */
+  :focus-visible {
+    outline: 2px solid var(--blue-600);
+    outline-offset: 2px;
+  }
+
+  /* Selection style */
+  ::selection {
+    background-color: var(--blue-600);
+    color: #ffffff;
+  }
+
+  /* Tabular figures for stats */
+  .tabular-nums {
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+}
+
+/* Respect reduced motion (DESIGN.md) */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom scroll padding for sticky navigation */
+section[id] {
+  scroll-margin-top: 5rem;
+}
+

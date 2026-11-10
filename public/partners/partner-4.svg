@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" width="240" height="80">
+    <rect width="240" height="80" rx="12" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+    <circle cx="45" cy="40" r="22" fill="#0C1D9D" opacity="0.1"/>
+    <text x="45" y="46" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#0C1D9D" text-anchor="middle">P4</text>
+    <text x="80" y="38" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#1E293B">TODO: replace</text>
+    <text x="80" y="54" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#64748B">Partner University 4</text>
+  </svg>

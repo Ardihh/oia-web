@@ -1,0 +1,280 @@
+{
+  "common": {
+    "siteTitle": "International Affairs Office - Universitas Mataram",
+    "siteTagline": "Gateway to Global Mobility and International Partnerships at UNRAM",
+    "unramName": "Universitas Mataram",
+    "unramShort": "UNRAM",
+    "officeName": "International Affairs Office",
+    "officeShort": "IAO UNRAM",
+    "skipToContent": "Skip to main content",
+    "backToTop": "Back to top",
+    "allRightsReserved": "All rights reserved."
+  },
+  "nav": {
+    "brandName": "International Affairs Office",
+    "brandSub": "Universitas Mataram",
+    "links": {
+      "about": "About",
+      "services": "Services",
+      "stats": "Impact",
+      "partners": "Partners",
+      "news": "News",
+      "admission": "Admission",
+      "faq": "FAQ",
+      "contact": "Contact"
+    },
+    "contactBtn": "Contact Us",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "switchLanguage": "Change language"
+  },
+  "hero": {
+    "badge": "UNRAM's Gateway to the World",
+    "titlePrefix": "Unlocking Global Horizons from",
+    "titleHighlight": "Lombok for an Interconnected Future",
+    "subtitle": "The International Affairs Office of Universitas Mataram connects students, faculty, and research consortia across continents from the tropical heart of West Nusa Tenggara.",
+    "ctaStudy": "Study at UNRAM",
+    "ctaPartner": "Partner With Us",
+    "trustPill": "TODO: replace (00+ Global Partner Universities • Premier Accreditation)"
+  },
+  "about": {
+    "kicker": "About Our Office",
+    "title": "Connecting UNRAM's Academic Community with the Global Stage",
+    "description1": "The International Affairs Office (IAO) at Universitas Mataram is the strategic executive arm operating under the Rector to cultivate, govern, and broaden international academic collaboration and cross-border mobility.",
+    "description2": "Nestled on the vibrant and ecologically rich island of Lombok, we are dedicated to providing safe, enriching, and globally competitive educational experiences for international scholars and domestic students alike.",
+    "visionTitle": "Vision",
+    "visionDesc": "TODO: replace (To emerge as an eminent, globally recognized, and trusted hub for higher education internationalization grounded in island and bioscience research by 2030).",
+    "missionTitle": "Mission",
+    "missionFullTitle": "Strategic Mission Details",
+    "missionItems": [
+      "TODO: replace (Expand equitable, high-impact institutional partnerships with distinguished global universities).",
+      "TODO: replace (Facilitate inbound and outbound mobility programs for students, professors, and administrative personnel).",
+      "TODO: replace (Deliver first-class immigration facilitation, cultural orientation, and welfare support for foreign students).",
+      "TODO: replace (Promote UNRAM's unique marine, agricultural, and biodiversity research to international academic circles)."
+    ],
+    "messageTitle": "Message from the Head of Office",
+    "messageQuote": "TODO: replace (\"Welcome to Universitas Mataram. We warmly invite students, scholars, and institutional partners from every corner of the globe to explore, research, and thrive with us on the island of Lombok.\")",
+    "messageAuthor": "TODO: replace (Head of Office Name, Ph.D)",
+    "messageRole": "Head of International Affairs Office",
+    "messageOffice": "Universitas Mataram"
+  },
+  "services": {
+    "kicker": "Our Services",
+    "title": "Comprehensive Support for Global Mobility",
+    "subtitle": "We offer end-to-end guidance from study program selection and student immigration to bilateral MoU design and academic hosting.",
+    "learnMore": "Explore Service",
+    "items": {
+      "inbound": {
+        "title": "International Students (Inbound)",
+        "desc": "Admissions advisory for degree programs, non-degree exchange, Sasak cultural immersion courses, and airport campus reception."
+      },
+      "outbound": {
+        "title": "Outbound Mobility",
+        "desc": "Endorsement and coaching for Indonesian International Student Mobility Awards (IISMA), overseas internships, and semester exchange."
+      },
+      "partnerships": {
+        "title": "Partnerships & MoUs",
+        "desc": "Initiation, legal drafting, ratification, and implementation monitoring for bilateral MoUs and MoAs with international universities."
+      },
+      "scholarships": {
+        "title": "Scholarship Guidance",
+        "desc": "Resource hub for worldwide scholarship opportunities (Erasmus+, MEXT, KNB Indonesia, Fulbright, LPDP) and application clinics."
+      },
+      "scholars": {
+        "title": "Visiting Scholars & Researchers",
+        "desc": "Administrative concierge, laboratory access coordination, and guest lecture management for visiting international faculty."
+      },
+      "visa": {
+        "title": "Visa & Stay Permit Assistance",
+        "desc": "Formal support for study permits via the Ministry of Education, limited stay visas (e-ITAS/KITAS), and local immigration reporting."
+      }
+    }
+  },
+  "stats": {
+    "kicker": "Global Footprint",
+    "title": "Our Track Record in Internationalization",
+    "subtitle": "Tangible commitments by Universitas Mataram to foster cross-border academic engagement.",
+    "items": {
+      "partners": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Global University Partners",
+        "desc": "TODO: replace (Active collaboration across Asia, Europe, and Australia)"
+      },
+      "countries": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Countries Engaged",
+        "desc": "TODO: replace (Student, faculty, and research exchange footprint)"
+      },
+      "students": {
+        "value": "000",
+        "suffix": "+",
+        "label": "Students Facilitated",
+        "desc": "TODO: replace (Cumulative inbound and outbound participants)"
+      },
+      "programs": {
+        "value": "00",
+        "suffix": "+",
+        "label": "Active Global Programs",
+        "desc": "TODO: replace (Dual degrees, summer schools, collaborative labs)"
+      }
+    }
+  },
+  "partners": {
+    "kicker": "Global Network",
+    "badge": "International Academic Alliances",
+    "title": "Partner Universities & Academic Consortia",
+    "subtitle": "We are proud to collaborate with esteemed international higher education institutions and networks to advance research and learning.",
+    "becomePartnerTitle": "Interested in Partnering with Universitas Mataram?",
+    "becomePartnerDesc": "We actively welcome collaborative proposals in island biodiversity, marine science, student exchange, and credit transfer.",
+    "becomePartnerBtn": "Initiate Partnership (MoU)"
+  },
+  "news": {
+    "kicker": "Latest Updates",
+    "title": "News & International Activities",
+    "subtitle": "Keep up with exchange updates, visiting delegations, and international milestones at UNRAM.",
+    "readMore": "Read Full Story",
+    "items": [
+      {
+        "id": "1",
+        "category": "Mobility Program",
+        "date": "TODO: replace (10 Nov 2026)",
+        "title": "TODO: replace (UNRAM Hosts IISMA Information Session for Prestigious Overseas Universities)",
+        "summary": "TODO: replace (Hundreds of UNRAM undergraduates attended comprehensive essay-writing, interview coaching, and language certification workshops with program alumni)."
+      },
+      {
+        "id": "2",
+        "category": "Global Partnership",
+        "date": "TODO: replace (04 Nov 2026)",
+        "title": "TODO: replace (Signing of Joint Marine & Environmental Research MoU with International Consortium)",
+        "summary": "TODO: replace (UNRAM deepens collaborative research in marine conservation and tropical ecology with partner delegates from abroad)."
+      },
+      {
+        "id": "3",
+        "category": "Inbound Students",
+        "date": "TODO: replace (28 Oct 2026)",
+        "title": "TODO: replace (Welcoming Orientation for International Students of Indonesian Language & Culture Program)",
+        "summary": "TODO: replace (IAO UNRAM delivered campus orientation, cultural adaptation briefings, and student welfare support for incoming international fellows)."
+      }
+    ]
+  },
+  "admission": {
+    "kicker": "Admission Pathway",
+    "stage": "Phase",
+    "formatNote": "PDF • Official IAO UNRAM Format",
+    "title": "Steps to Join Universitas Mataram",
+    "subtitle": "A step-by-step roadmap for prospective international students embarking on their academic journey in Lombok.",
+    "steps": [
+      {
+        "step": "01",
+        "title": "Explore Study Programs",
+        "desc": "Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM."
+      },
+      {
+        "step": "02",
+        "title": "Prepare Requirements",
+        "desc": "Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation."
+      },
+      {
+        "step": "03",
+        "title": "Submit Online Dossier",
+        "desc": "Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents."
+      },
+      {
+        "step": "04",
+        "title": "Study Permit & Arrival",
+        "desc": "Upon receipt of your Letter of Acceptance (LoA), our team coordinates your Ministry Study Permit and electronic visa (KITAS)."
+      }
+    ],
+    "downloadGuide": "Download International Student Handbook (PDF)",
+    "downloadBtn": "TODO: replace (Download Handbook)"
+  },
+  "faq": {
+    "kicker": "Frequently Asked Questions",
+    "title": "Everything You Need to Know",
+    "subtitle": "Direct answers to key inquiries regarding international admission, visa regulations, and student life in Lombok.",
+    "items": [
+      {
+        "q": "Does Universitas Mataram offer scholarships for international students?",
+        "a": "TODO: replace (Yes, international students may apply through the Indonesian Government's Developing Countries Partnership (KNB) Scholarship, bilateral governmental grants, or selective UNRAM tuition waiver programs based on academic excellence)."
+      },
+      {
+        "q": "What is the procedure for obtaining a student visa and stay permit?",
+        "a": "TODO: replace (Once admitted, IAO UNRAM assists in obtaining the mandatory Study Permit from the Ministry of Higher Education. We then guide you through the electronic limited-stay visa (e-ITAS) process prior to landing at Lombok International Airport)."
+      },
+      {
+        "q": "Is on-campus or student accommodation provided near the university?",
+        "a": "TODO: replace (UNRAM provides campus dormitories (Rusunawa), and our office helps international students find verified, budget-friendly off-campus private rooms and homestays within safe walking distance)."
+      },
+      {
+        "q": "How can UNRAM domestic students apply for outbound exchange programs like IISMA?",
+        "a": "TODO: replace (Enrolled UNRAM students can access eligibility guidelines on our portal, participate in preparation workshops, and request official institutional nomination letters from IAO UNRAM ahead of national deadlines)."
+      },
+      {
+        "q": "What is the primary language of instruction for international students?",
+        "a": "TODO: replace (Select degree programs offer English-taught courses. For regular Indonesian-language tracks, UNRAM delivers intensive Indonesian Language for Foreign Speakers (BIPA) preparatory classes)."
+      },
+      {
+        "q": "How can an overseas university or research body initiate an MoU with UNRAM?",
+        "a": "TODO: replace (Prospective institutions can submit a formal letter of intent and draft agreement via our contact form or directly to io@unram.ac.id for review by our Rectorate and Legal Partnerships bureau)."
+      }
+    ]
+  },
+  "contact": {
+    "kicker": "Get in Touch",
+    "title": "We are Here to Help",
+    "subtitle": "Have inquiries about academic programs, student visas, or prospective institutional cooperation? Reach out to our team.",
+    "form": {
+      "title": "Send Us a Message",
+      "subtitle": "We typically reply within 1-2 business days.",
+      "nameLabel": "Full Name",
+      "namePlaceholder": "Enter your full name",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "name@institution.ac.id",
+      "subjectLabel": "Subject / Topic",
+      "subjectPlaceholder": "Select or enter inquiry topic",
+      "subjectOptions": {
+        "study": "International Admissions (Inbound)",
+        "outbound": "Outbound Student Exchange (IISMA/Mobility)",
+        "partnership": "Academic Partnership & MoUs",
+        "visa": "Visas & Immigration Inquiries",
+        "other": "Other Inquiries"
+      },
+      "messageLabel": "Message",
+      "messagePlaceholder": "Describe your question or partnership proposal in detail...",
+      "submitBtn": "Send Message",
+      "sendingBtn": "Sending Message...",
+      "successTitle": "Message Sent Successfully!",
+      "successDesc": "Thank you for contacting the International Affairs Office of UNRAM. We will respond to your email promptly.",
+      "errorTitle": "Failed to Send Message",
+      "errorDesc": "An error occurred while submitting your inquiry. Please try again or reach out to us directly via official email.",
+      "sendAnother": "Send another inquiry"
+    },
+    "info": {
+      "addressTitle": "Office Location",
+      "addressContent": "UNRAM Rectorate Building, 1st Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia",
+      "emailTitle": "Official Email",
+      "emailValue": "io@unram.ac.id",
+      "phoneTitle": "Phone / WhatsApp",
+      "phoneValue": "+62 (370) 633007",
+      "hoursTitle": "Office Hours",
+      "hoursValue": "Monday – Friday: 08:00 – 16:00 WITA (GMT+8)",
+      "socialTitle": "Connect With Us",
+      "mapTitle": "Campus Location Map"
+    }
+  },
+  "footer": {
+    "aboutTitle": "International Affairs Office",
+    "aboutDesc": "The central coordination body for international institutional cooperation, cross-border academic mobility, and foreign student affairs at Universitas Mataram, Lombok, Indonesia.",
+    "quickLinksTitle": "Quick Links",
+    "unramLinksTitle": "UNRAM Portals",
+    "unramMainSite": "UNRAM Official Website",
+    "unramLibrary": "Central Library",
+    "unramLppm": "Research & Community Service (LPPM)",
+    "unramAcademic": "Academic Information System (SIAKAD)",
+    "emergencyTitle": "International Student Emergency Hotline",
+    "emergencyDesc": "Round-the-clock support for enrolled international scholars requiring urgent medical or safety assistance in Lombok.",
+    "copyright": "© 2026 International Affairs Office, Universitas Mataram. All Rights Reserved."
+  }
+}
