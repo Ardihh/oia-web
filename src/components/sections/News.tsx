@@ -20,21 +20,21 @@ export function News({ locale }: NewsProps) {
   const { content } = useSiteContent();
 
   const [articles, setArticles] = useState<NewsArticle[]>(
-    Array.isArray(content?.news) && content.news.length > 0 ? content.news : defaultNews
+    Array.isArray(content?.news) ? content.news : defaultNews
   );
 
   const syncArticles = () => {
     // 1. Check content.news from Context
-    if (Array.isArray(content?.news) && content.news.length > 0) {
+    if (Array.isArray(content?.news)) {
       setArticles(content.news);
       return;
     }
     // 2. Check localStorage unram_custom_news directly
     try {
       const custom = localStorage.getItem('unram_custom_news');
-      if (custom) {
+      if (custom !== null) {
         const parsed = JSON.parse(custom);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setArticles(parsed);
           return;
         }
@@ -82,8 +82,16 @@ export function News({ locale }: NewsProps) {
         </div>
 
         {/* Editorial News Grid (DESIGN.md Section 7) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-          {articles.map((item, index) => {
+        {articles.length === 0 ? (
+          <div className="text-center py-12 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto">
+            <BookOpen className="w-8 h-8 text-ink-soft/40 mx-auto mb-3" />
+            <p className="text-sm font-medium text-ink-soft">
+              {isEn ? 'No news articles published yet.' : 'Belum ada berita yang diterbitkan.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+            {articles.map((item, index) => {
             const title =
               typeof item.title === 'object'
                 ? item.title[lang] || item.title.id || item.title.en || ''
@@ -156,6 +164,7 @@ export function News({ locale }: NewsProps) {
             );
           })}
         </div>
+        )}
       </Container>
     </section>
   );

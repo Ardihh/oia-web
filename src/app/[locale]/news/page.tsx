@@ -19,19 +19,19 @@ function NewsContent() {
 
   const [copied, setCopied] = useState(false);
   const [articles, setArticles] = useState<NewsArticle[]>(
-    Array.isArray(content?.news) && content.news.length > 0 ? content.news : defaultNews
+    Array.isArray(content?.news) ? content.news : defaultNews
   );
 
   useEffect(() => {
-    if (Array.isArray(content?.news) && content.news.length > 0) {
+    if (Array.isArray(content?.news)) {
       setArticles(content.news);
       return;
     }
     try {
       const custom = localStorage.getItem('unram_custom_news');
-      if (custom) {
+      if (custom !== null) {
         const parsed = JSON.parse(custom);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setArticles(parsed);
           return;
         }
@@ -241,49 +241,63 @@ function NewsContent() {
         </div>
 
         {/* Full Grid of All News */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-          {articles.map((item, index) => {
-            const title = getField(item.title);
-            const summary = getField(item.summary);
-            const category = getField(item.category);
-            const date = getField(item.date);
-            const href = `/${locale}/news/?id=${encodeURIComponent(item.id)}`;
+        {articles.length === 0 ? (
+          <div className="text-center py-16 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto my-8">
+            <BookOpen className="w-10 h-10 text-ink-soft/40 mx-auto mb-3" />
+            <h3 className="font-serif text-xl font-normal text-ink mb-1">
+              {isEn ? 'No News Articles' : 'Belum Ada Berita'}
+            </h3>
+            <p className="text-sm text-ink-soft">
+              {isEn
+                ? 'There are currently no news articles published.'
+                : 'Saat ini belum ada artikel berita yang diterbitkan.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+            {articles.map((item, index) => {
+              const title = getField(item.title);
+              const summary = getField(item.summary);
+              const category = getField(item.category);
+              const date = getField(item.date);
+              const href = `/${locale}/news/?id=${encodeURIComponent(item.id)}`;
 
-            return (
-              <article key={item.id || index} className="group flex flex-col justify-between">
-                <div>
-                  <a href={href} className="block relative aspect-[3/2] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100 mb-4">
-                    <Image
-                      src={item.image || '/images/news-1.jpg'}
-                      alt={title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover group-hover:scale-102 transition-transform duration-300"
-                    />
-                  </a>
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-soft mb-2">
-                    <span>{date}</span> {category && <>&bull; <span>{category}</span></>}
-                  </p>
-                  <h3 className="font-serif text-xl font-normal text-ink leading-snug group-hover:text-unram-600 transition-colors">
-                    <a href={href}>{title}</a>
-                  </h3>
-                  <p className="text-sm text-ink-soft leading-[1.65] mt-2 line-clamp-3">
-                    {summary}
-                  </p>
-                </div>
-                <div className="pt-4">
-                  <a
-                    href={href}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-unram-600 group-hover:text-unram-700 underline-offset-4 hover:underline transition-colors"
-                  >
-                    <span>{isEn ? 'Read article' : 'Baca selengkapnya'}</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </a>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+              return (
+                <article key={item.id || index} className="group flex flex-col justify-between">
+                  <div>
+                    <a href={href} className="block relative aspect-[3/2] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100 mb-4">
+                      <Image
+                        src={item.image || '/images/news-1.jpg'}
+                        alt={title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover group-hover:scale-102 transition-transform duration-300"
+                      />
+                    </a>
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-soft mb-2">
+                      <span>{date}</span> {category && <>&bull; <span>{category}</span></>}
+                    </p>
+                    <h3 className="font-serif text-xl font-normal text-ink leading-snug group-hover:text-unram-600 transition-colors">
+                      <a href={href}>{title}</a>
+                    </h3>
+                    <p className="text-sm text-ink-soft leading-[1.65] mt-2 line-clamp-3">
+                      {summary}
+                    </p>
+                  </div>
+                  <div className="pt-4">
+                    <a
+                      href={href}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-unram-600 group-hover:text-unram-700 underline-offset-4 hover:underline transition-colors"
+                    >
+                      <span>{isEn ? 'Read article' : 'Baca selengkapnya'}</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </a>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </Container>
     </div>
   );

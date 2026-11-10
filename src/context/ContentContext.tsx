@@ -543,8 +543,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
             ...defaultSiteContent.contact,
             ...(parsed.contact || {}),
           },
-          guides: Array.isArray(parsed.guides) && parsed.guides.length > 0 ? parsed.guides : defaultGuides,
-          news: Array.isArray(parsed.news) && parsed.news.length > 0 ? parsed.news : defaultNews,
+          guides: Array.isArray(parsed.guides) ? parsed.guides : defaultGuides,
+          news: Array.isArray(parsed.news) ? parsed.news : defaultNews,
         };
       } catch {
         return null;
@@ -556,24 +556,23 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('unram_site_content');
       localStorage.removeItem('unram_site_content_v2');
 
-      let preservedNews: NewsArticle[] = defaultNews;
-      const customNewsRaw = localStorage.getItem('unram_custom_news');
-      if (customNewsRaw) {
-        try {
-          const parsedCustom = JSON.parse(customNewsRaw);
-          if (Array.isArray(parsedCustom) && parsedCustom.length > 0) {
-            preservedNews = parsedCustom;
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
       const loaded = loadFromStorage();
       if (loaded) {
-        setContent({ ...loaded, news: loaded.news.length > 0 ? loaded.news : preservedNews });
+        setContent(loaded);
       } else {
-        const initial: SiteContent = { ...defaultSiteContent, news: preservedNews };
+        let initialNews: NewsArticle[] = defaultNews;
+        const customNewsRaw = localStorage.getItem('unram_custom_news');
+        if (customNewsRaw !== null) {
+          try {
+            const parsedCustom = JSON.parse(customNewsRaw);
+            if (Array.isArray(parsedCustom)) {
+              initialNews = parsedCustom;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        const initial: SiteContent = { ...defaultSiteContent, news: initialNews };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
         setContent(initial);
       }

@@ -175,22 +175,22 @@ export default function AdminPage() {
   useEffect(() => {
     if (content) {
       setSiteDraft(content);
-      if (Array.isArray(content.news) && content.news.length > 0) {
+      if (Array.isArray(content.news)) {
         setNewsList(content.news as NewsItem[]);
       }
     }
   }, [content]);
 
   const loadNews = () => {
-    if (Array.isArray(content?.news) && content.news.length > 0) {
+    if (Array.isArray(content?.news)) {
       setNewsList(content.news as NewsItem[]);
       return;
     }
     const localData = localStorage.getItem('unram_custom_news');
-    if (localData) {
+    if (localData !== null) {
       try {
         const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setNewsList(parsed);
           return;
         }
@@ -1114,7 +1114,14 @@ export default function AdminPage() {
                 {isEn ? 'Active Articles' : 'Daftar Berita Aktif'}
               </h3>
               <div className="space-y-4">
-                {newsList.map((item) => (
+                {newsList.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    {isEn
+                      ? 'No active articles. Use the form above to publish a new article.'
+                      : 'Belum ada berita aktif. Gunakan formulir di atas untuk menerbitkan berita baru.'}
+                  </div>
+                ) : (
+                  newsList.map((item) => (
                   <div key={item.id} className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-unram-900 flex-shrink-0">
@@ -1159,7 +1166,7 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                )))}
               </div>
             </div>
           </div>
