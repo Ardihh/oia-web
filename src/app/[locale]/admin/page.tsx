@@ -220,7 +220,21 @@ export default function AdminPage() {
   // Save full site sections
   const handleSaveSections = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    updateContent(siteDraft);
+    const finalDraft = {
+      ...siteDraft,
+      contact: {
+        ...siteDraft.contact,
+        addressContent: {
+          id: siteDraft.contact.addressContent.id,
+          en: siteDraft.contact.addressContent.en || siteDraft.contact.addressContent.id,
+        },
+        hoursValue: {
+          id: siteDraft.contact.hoursValue.id,
+          en: siteDraft.contact.hoursValue.en || siteDraft.contact.hoursValue.id,
+        },
+      },
+    };
+    updateContent(finalDraft);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -2269,24 +2283,49 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Alamat Kantor Rektorat (ID)
-                </label>
-                <input
-                  type="text"
-                  value={siteDraft.contact.addressContent.id}
-                  onChange={(e) =>
-                    setSiteDraft({
-                      ...siteDraft,
-                      contact: {
-                        ...siteDraft.contact,
-                        addressContent: { ...siteDraft.contact.addressContent, id: e.target.value },
-                      },
-                    })
-                  }
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Alamat Kantor Rektorat (Bahasa Indonesia)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={siteDraft.contact.addressContent.id}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteDraft({
+                        ...siteDraft,
+                        contact: {
+                          ...siteDraft.contact,
+                          addressContent: {
+                            id: val,
+                            en: siteDraft.contact.addressContent.en || val,
+                          },
+                        },
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Office Address (English)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={siteDraft.contact.addressContent.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        contact: {
+                          ...siteDraft.contact,
+                          addressContent: { ...siteDraft.contact.addressContent, en: e.target.value },
+                        },
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2324,24 +2363,145 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Jam Layanan Kantor (Bahasa Indonesia)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.contact.hoursValue.id}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSiteDraft({
+                        ...siteDraft,
+                        contact: {
+                          ...siteDraft.contact,
+                          hoursValue: {
+                            id: val,
+                            en: siteDraft.contact.hoursValue.en || val,
+                          },
+                        },
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Office Hours (English)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.contact.hoursValue.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        contact: {
+                          ...siteDraft.contact,
+                          hoursValue: { ...siteDraft.contact.hoursValue, en: e.target.value },
+                        },
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                  Jam Layanan Kantor
+                  Google Maps Embed URL
                 </label>
                 <input
-                  type="text"
-                  value={siteDraft.contact.hoursValue.id}
+                  type="url"
+                  placeholder="https://maps.google.com/..."
+                  value={siteDraft.contact.mapUrl || ''}
                   onChange={(e) =>
                     setSiteDraft({
                       ...siteDraft,
-                      contact: {
-                        ...siteDraft.contact,
-                        hoursValue: { ...siteDraft.contact.hoursValue, id: e.target.value },
-                      },
+                      contact: { ...siteDraft.contact, mapUrl: e.target.value },
                     })
                   }
                   className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
                 />
+              </div>
+
+              {/* Social Media Links */}
+              <div className="pt-4 border-t border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">
+                  Link Media Sosial / Social Media Links
+                </h4>
+                <p className="text-xs text-slate-500">Kosongkan field jika tidak ingin ditampilkan di halaman utama.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Instagram URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://instagram.com/..."
+                      value={(siteDraft.contact as any).socialInstagram || ''}
+                      onChange={(e) =>
+                        setSiteDraft({
+                          ...siteDraft,
+                          contact: { ...siteDraft.contact, socialInstagram: e.target.value } as any,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      LinkedIn URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://linkedin.com/..."
+                      value={(siteDraft.contact as any).socialLinkedin || ''}
+                      onChange={(e) =>
+                        setSiteDraft({
+                          ...siteDraft,
+                          contact: { ...siteDraft.contact, socialLinkedin: e.target.value } as any,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      YouTube URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://youtube.com/..."
+                      value={(siteDraft.contact as any).socialYoutube || ''}
+                      onChange={(e) =>
+                        setSiteDraft({
+                          ...siteDraft,
+                          contact: { ...siteDraft.contact, socialYoutube: e.target.value } as any,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      WhatsApp URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://wa.me/628..."
+                      value={(siteDraft.contact as any).socialWhatsapp || ''}
+                      onChange={(e) =>
+                        setSiteDraft({
+                          ...siteDraft,
+                          contact: { ...siteDraft.contact, socialWhatsapp: e.target.value } as any,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

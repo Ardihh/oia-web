@@ -20,11 +20,20 @@ export function Footer({ locale }: FooterProps) {
   const tContact = useTranslations('contact');
   const { content } = useSiteContent();
   const lang = locale === 'en' ? 'en' : 'id';
+  const isHomePage = pathname === `/${locale}` || pathname === `/${locale}/` || pathname === '/';
 
-  const addressContent = content?.contact?.addressContent?.[lang] || tContact('info.addressContent');
+  const addressContent =
+    (lang === 'en'
+      ? content?.contact?.addressContent?.en || content?.contact?.addressContent?.id
+      : content?.contact?.addressContent?.id || content?.contact?.addressContent?.en) ||
+    tContact('info.addressContent');
   const emailValue = content?.contact?.emailValue || tContact('info.emailValue');
   const phoneValue = content?.contact?.phoneValue || tContact('info.phoneValue');
-  const hoursValue = content?.contact?.hoursValue?.[lang] || tContact('info.hoursValue');
+  const hoursValue =
+    (lang === 'en'
+      ? content?.contact?.hoursValue?.en || content?.contact?.hoursValue?.id
+      : content?.contact?.hoursValue?.id || content?.contact?.hoursValue?.en) ||
+    tContact('info.hoursValue');
 
   const [isAdminPath, setIsAdminPath] = useState(false);
 
@@ -101,7 +110,7 @@ export function Footer({ locale }: FooterProps) {
               {navLinks.map((link) => (
                 <li key={link.href}>
                   <a
-                    href={link.href}
+                    href={isHomePage ? link.href : `/${locale}/${link.href}`}
                     className="text-blue-300/80 hover:text-paper hover:underline underline-offset-4 transition-colors"
                   >
                     {link.label}

@@ -95,6 +95,10 @@ export interface SiteContent {
     phoneValue: string;
     hoursValue: { id: string; en: string };
     mapUrl: string;
+    socialInstagram: string;
+    socialLinkedin: string;
+    socialYoutube: string;
+    socialWhatsapp: string;
   };
   guides: GuideItem[];
   news: NewsArticle[];
@@ -492,6 +496,10 @@ export const defaultSiteContent: SiteContent = {
       en: 'Monday – Friday: 08:00 – 16:00 WITA (GMT+8)',
     },
     mapUrl: 'https://maps.google.com/maps?q=Universitas%20Mataram%20Jl.%20Majapahit%20No.62&t=&z=15&ie=UTF8&iwloc=&output=embed',
+    socialInstagram: 'https://instagram.com/io_unram',
+    socialLinkedin: 'https://linkedin.com/school/universitas-mataram',
+    socialYoutube: 'https://youtube.com/@universitasmataram',
+    socialWhatsapp: 'https://wa.me/6281234567890',
   },
   guides: defaultGuides,
   news: defaultNews,
@@ -521,12 +529,33 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<SiteContent>(defaultSiteContent);
 
   useEffect(() => {
+    // Helper to load & merge saved content from localStorage
+    const loadFromStorage = (): SiteContent | null => {
+      try {
+        const savedV4 = localStorage.getItem(STORAGE_KEY);
+        if (!savedV4) return null;
+        const parsed = JSON.parse(savedV4);
+        if (!isSiteContentValid(parsed)) return null;
+        return {
+          ...defaultSiteContent,
+          ...parsed,
+          contact: {
+            ...defaultSiteContent.contact,
+            ...(parsed.contact || {}),
+          },
+          guides: Array.isArray(parsed.guides) && parsed.guides.length > 0 ? parsed.guides : defaultGuides,
+          news: Array.isArray(parsed.news) && parsed.news.length > 0 ? parsed.news : defaultNews,
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    // Initial load
     try {
-      // Clear obsolete keys
       localStorage.removeItem('unram_site_content');
       localStorage.removeItem('unram_site_content_v2');
 
-      // Check custom news in localStorage to preserve user articles
       let preservedNews: NewsArticle[] = defaultNews;
       const customNewsRaw = localStorage.getItem('unram_custom_news');
       if (customNewsRaw) {
@@ -540,46 +569,23 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const savedV4 = localStorage.getItem(STORAGE_KEY);
-      if (savedV4) {
-        const parsed = JSON.parse(savedV4);
-        if (isSiteContentValid(parsed)) {
-          // Merge guides and news if not present
-          const merged: SiteContent = {
-            ...defaultSiteContent,
-            ...parsed,
-            guides: Array.isArray(parsed.guides) && parsed.guides.length > 0 ? parsed.guides : defaultGuides,
-            news: Array.isArray(parsed.news) && parsed.news.length > 0 ? parsed.news : preservedNews,
-          };
-          setContent(merged);
-          return;
-        }
+      const loaded = loadFromStorage();
+      if (loaded) {
+        setContent({ ...loaded, news: loaded.news.length > 0 ? loaded.news : preservedNews });
+      } else {
+        const initial: SiteContent = { ...defaultSiteContent, news: preservedNews };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+        setContent(initial);
       }
-
-      // Default fallback with preserved news
-      const initial: SiteContent = {
-        ...defaultSiteContent,
-        news: preservedNews,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-      setContent(initial);
     } catch (e) {
       console.error('Error initializing site content:', e);
       setContent(defaultSiteContent);
     }
 
+    // Real-time sync listener (fired when admin saves)
     const handleSync = () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (isSiteContentValid(parsed)) {
-            setContent(parsed);
-          }
-        }
-      } catch (e) {
-        console.error('Error syncing content:', e);
-      }
+      const loaded = loadFromStorage();
+      if (loaded) setContent(loaded);
     };
 
     window.addEventListener('storage', handleSync);

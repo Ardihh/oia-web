@@ -33,18 +33,21 @@ export function Navbar({ locale }: NavbarProps) {
     return () => window.removeEventListener('unram_active_section_changed', handleActiveChange);
   }, []);
 
+  const isHomePage =
+    pathname === `/${locale}` || pathname === `/${locale}/` || pathname === '/';
+
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     const targetKey = href.replace('#', '');
     setMobileMenuOpen(false);
 
-    if (
-      typeof window !== 'undefined' &&
-      (pathname === `/${locale}` || pathname === `/${locale}/` || pathname === '/')
-    ) {
+    if (isHomePage) {
       e.preventDefault();
       window.dispatchEvent(
         new CustomEvent('unram_navigate_section', { detail: targetKey })
       );
+    } else {
+      e.preventDefault();
+      window.location.href = `/${locale}/#${targetKey}`;
     }
   };
 
@@ -132,7 +135,7 @@ export function Navbar({ locale }: NavbarProps) {
               return (
                 <a
                   key={link.href}
-                  href={link.href}
+                  href={isHomePage ? link.href : `/${locale}/${link.href}`}
                   onClick={(e) => handleNavClick(e, link.href)}
                   className={cn(
                     'px-2.5 py-1 text-sm transition-colors rounded-[4px]',
@@ -151,7 +154,7 @@ export function Navbar({ locale }: NavbarProps) {
           <div className="hidden lg:flex items-center gap-5">
             <LanguageSwitcher />
             <a
-              href="#contact"
+              href={isHomePage ? '#contact' : `/${locale}/#contact`}
               onClick={(e) => handleNavClick(e, '#contact')}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors focus-visible:ring-2 focus-visible:ring-unram-600 focus-visible:ring-offset-2"
             >
@@ -189,7 +192,7 @@ export function Navbar({ locale }: NavbarProps) {
                 return (
                   <a
                     key={link.href}
-                    href={link.href}
+                    href={isHomePage ? link.href : `/${locale}/${link.href}`}
                     onClick={(e) => handleNavClick(e, link.href)}
                     className={cn(
                       'font-serif text-xl py-1 transition-colors flex items-center justify-between',
@@ -203,7 +206,7 @@ export function Navbar({ locale }: NavbarProps) {
               })}
               <div className="pt-4 border-t border-hairline">
                 <a
-                  href="#contact"
+                  href={isHomePage ? '#contact' : `/${locale}/#contact`}
                   onClick={(e) => handleNavClick(e, '#contact')}
                   className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors"
                 >

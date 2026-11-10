@@ -19,11 +19,23 @@ export function Contact({ locale }: ContactProps) {
   const { content } = useSiteContent();
   const lang = locale === 'en' ? 'en' : 'id';
 
-  const addressContent = content.contact.addressContent[lang] || tInfo('addressContent');
-  const emailValue = content.contact.emailValue || tInfo('emailValue');
-  const phoneValue = content.contact.phoneValue || tInfo('phoneValue');
-  const hoursValue = content.contact.hoursValue[lang] || tInfo('hoursValue');
+  const addressContent =
+    (lang === 'en'
+      ? content.contact?.addressContent?.en || content.contact?.addressContent?.id
+      : content.contact?.addressContent?.id || content.contact?.addressContent?.en) ||
+    tInfo('addressContent');
+  const emailValue = content.contact?.emailValue || tInfo('emailValue');
+  const phoneValue = content.contact?.phoneValue || tInfo('phoneValue');
+  const hoursValue =
+    (lang === 'en'
+      ? content.contact?.hoursValue?.en || content.contact?.hoursValue?.id
+      : content.contact?.hoursValue?.id || content.contact?.hoursValue?.en) ||
+    tInfo('hoursValue');
   const mapUrl = content.contact.mapUrl || 'https://maps.google.com/maps?q=Universitas%20Mataram%20Jl.%20Majapahit%20No.62&t=&z=15&ie=UTF8&iwloc=&output=embed';
+  const socialInstagram = content.contact.socialInstagram || '';
+  const socialLinkedin = content.contact.socialLinkedin || '';
+  const socialYoutube = content.contact.socialYoutube || '';
+  const socialWhatsapp = content.contact.socialWhatsapp || '';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -155,35 +167,59 @@ export function Contact({ locale }: ContactProps) {
                   {locale === 'en' ? 'Connect With Us' : 'Kanal Komunikasi'}
                 </h4>
                 <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-unram-600">
-                  <a
-                    href="https://instagram.com/io_unram"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 hover:underline underline-offset-4"
-                  >
-                    <span>Instagram</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </a>
-                  <span className="text-hairline">/</span>
-                  <a
-                    href="https://linkedin.com/school/universitas-mataram"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 hover:underline underline-offset-4"
-                  >
-                    <span>LinkedIn</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </a>
-                  <span className="text-hairline">/</span>
-                  <a
-                    href="https://youtube.com/@universitasmataram"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 hover:underline underline-offset-4"
-                  >
-                    <span>YouTube</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </a>
+                  {socialInstagram && (
+                    <>
+                      <a
+                        href={socialInstagram}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 hover:underline underline-offset-4"
+                      >
+                        <span>Instagram</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
+                      <span className="text-hairline">/</span>
+                    </>
+                  )}
+                  {socialLinkedin && (
+                    <>
+                      <a
+                        href={socialLinkedin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 hover:underline underline-offset-4"
+                      >
+                        <span>LinkedIn</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
+                      <span className="text-hairline">/</span>
+                    </>
+                  )}
+                  {socialYoutube && (
+                    <>
+                      <a
+                        href={socialYoutube}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 hover:underline underline-offset-4"
+                      >
+                        <span>YouTube</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
+                      <span className="text-hairline">/</span>
+                    </>
+                  )}
+                  {socialWhatsapp && (
+                    <a
+                      href={socialWhatsapp}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 hover:underline underline-offset-4"
+                    >
+                      <span>WhatsApp</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
