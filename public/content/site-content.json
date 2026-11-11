@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-11T06:43:12.126Z",
+  "updatedAt": "2026-11-11T08:11:57.697Z",
   "hero": {
     "badge": {
       "id": "Pintu Gerbang Internasionalisasi UNRAM",
@@ -30,8 +30,54 @@
       "id": "TODO: replace (00+ Mitra Universitas Dunia • Akreditasi Unggul)",
       "en": "TODO: replace (00+ Global Partner Universities • Premier Accreditation)"
     },
-    "bgImage": "/uploads/0933c04122b18d8f.webp"
+    "bgImage": "/images/hero-campus.jpg"
   },
+  "admissionSteps": [
+    {
+      "id": "step-1",
+      "title": {
+        "id": "Pilih Program Studi",
+        "en": "Explore Study Programs"
+      },
+      "desc": {
+        "id": "Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM.",
+        "en": "Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM."
+      }
+    },
+    {
+      "id": "step-2",
+      "title": {
+        "id": "Persiapan Dokumen",
+        "en": "Prepare Requirements"
+      },
+      "desc": {
+        "id": "Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi.",
+        "en": "Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation."
+      }
+    },
+    {
+      "id": "step-3",
+      "title": {
+        "id": "Pengajuan Berkas Online",
+        "en": "Submit Online Dossier"
+      },
+      "desc": {
+        "id": "Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.",
+        "en": "Complete the official OIA UNRAM online registration form and upload certified digital copies of all required documents."
+      }
+    },
+    {
+      "id": "step-4",
+      "title": {
+        "id": "Izin Belajar & Kedatangan",
+        "en": "Study Permit & Arrival"
+      },
+      "desc": {
+        "id": "Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).",
+        "en": "After the Letter of Acceptance (LoA) is issued, the OIA team assists with the Ministry of Education study permit and e-Visa (KITAS)."
+      }
+    }
+  ],
   "about": {
     "kicker": {
       "id": "Tentang Kami",
@@ -84,8 +130,8 @@
       "en": "Our gateway is widely open to global scholars, students, and research consortia wishing to collaborate and innovate in Lombok."
     },
     "messageAuthor": {
-      "id": "I Wayan Agus Arimbawa S.T., M.T., Ph.D.",
-      "en": "I Wayan Agus Arimbawa S.T., M.T., Ph.D."
+      "id": "TODO: replace (Nama Kepala Kantor, Ph.D.)",
+      "en": "TODO: replace (Head of Office Name, Ph.D.)"
     },
     "messageRole": {
       "id": "Kepala Kantor Urusan Internasional",
@@ -95,54 +141,8 @@
       "id": "Universitas Mataram",
       "en": "Universitas Mataram"
     },
-    "headPhoto": "/uploads/96624a419137bc56.webp"
+    "headPhoto": "/images/head-of-office.jpg"
   },
-  "admissionSteps": [
-    {
-      "id": "step-1",
-      "title": {
-        "id": "Pilih Program Studi",
-        "en": "Explore Study Programs"
-      },
-      "desc": {
-        "id": "Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM.",
-        "en": "Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM."
-      }
-    },
-    {
-      "id": "step-2",
-      "title": {
-        "id": "Persiapan Dokumen",
-        "en": "Prepare Requirements"
-      },
-      "desc": {
-        "id": "Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi.",
-        "en": "Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation."
-      }
-    },
-    {
-      "id": "step-3",
-      "title": {
-        "id": "Pengajuan Berkas Online",
-        "en": "Submit Online Dossier"
-      },
-      "desc": {
-        "id": "Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.",
-        "en": "Complete the official OIA UNRAM online registration form and upload certified digital copies of all required documents."
-      }
-    },
-    {
-      "id": "step-4",
-      "title": {
-        "id": "Izin Belajar & Kedatangan",
-        "en": "Study Permit & Arrival"
-      },
-      "desc": {
-        "id": "Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).",
-        "en": "After the Letter of Acceptance (LoA) is issued, the OIA team assists with the Ministry of Education study permit and e-Visa (KITAS)."
-      }
-    }
-  ],
   "stats": {
     "kicker": {
       "id": "Capaian & Dampak",
@@ -173,7 +173,7 @@
       {
         "id": "countries",
         "value": "18",
-        "suffix": "+",
+        "suffix": "",
         "label": {
           "id": "Negara Asal Kolaborasi",
           "en": "Countries Represented"
@@ -199,7 +199,7 @@
       {
         "id": "programs",
         "value": "14",
-        "suffix": "+",
+        "suffix": "",
         "label": {
           "id": "Program Internasional Aktif",
           "en": "Active Global Programs"
@@ -383,20 +383,20 @@
   },
   "contact": {
     "addressContent": {
-      "id": "Gedung Rektorat UNRAM Lantai 1, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
-      "en": "UNRAM Rectorate Building, 1st Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia"
+      "id": "Gedung Rektorat UNRAM Lantai 2, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
+      "en": "UNRAM Rectorate Building, 2nd Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia"
     },
     "emailValue": "oia@unram.ac.id",
-    "phoneValue": "+62 (370) 633007",
+    "phoneValue": "+62 877-2245-8767",
     "hoursValue": {
       "id": "Senin - Jumat: 08.00 - 16.00 WITA (GMT+8)",
       "en": "Monday – Friday: 08:00 – 16:00 WITA (GMT+8)"
     },
     "mapUrl": "https://maps.google.com/maps?q=Universitas%20Mataram%20Jl.%20Majapahit%20No.62&t=&z=15&ie=UTF8&iwloc=&output=embed",
-    "socialInstagram": "https://instagram.com/io_unram",
-    "socialLinkedin": "https://linkedin.com/school/universitas-mataram",
-    "socialYoutube": "https://youtube.com/@universitasmataram",
-    "socialWhatsapp": "https://wa.me/6281234567890"
+    "socialInstagram": "https://www.instagram.com/oiaunram?xtok=ZDNlZDc0MzIxNw==",
+    "socialLinkedin": "https://www.linkedin.com/company/oia-unram/",
+    "socialYoutube": "http://www.youtube.com/@officialunram",
+    "socialWhatsapp": "https://wa.me/6287722458767"
   },
   "guides": [
     {
@@ -455,31 +455,6 @@
     }
   ],
   "news": [
-    {
-      "id": "1",
-      "category": {
-        "id": "Program Mobilitas",
-        "en": "Mobility Program"
-      },
-      "date": {
-        "id": "10 Nov 2026",
-        "en": "10 Nov 2026"
-      },
-      "title": {
-        "id": "Sosialisasi Seleksi IISMA UNRAM Menuju Universitas Top Dunia",
-        "en": "UNRAM Hosts IISMA Information Session for Prestigious Overseas Universities"
-      },
-      "summary": {
-        "id": "Ratusan mahasiswa UNRAM antusias mengikuti pembekalan esai, wawancara, dan tes kecakapan bahasa Inggris bersama alumni program.",
-        "en": "Hundreds of UNRAM undergraduates attended comprehensive essay-writing, interview coaching, and language certification workshops with program alumni."
-      },
-      "content": {
-        "id": "Kantor Urusan Internasional (KUI) Universitas Mataram secara resmi menyelenggarakan sesi sosialisasi intensif program Indonesian International Student Mobility Awards (IISMA) 2026. Acara yang dihadiri lebih dari 350 mahasiswa dari berbagai fakultas ini berfokus pada strategi penulisan esai motivasi, simulasi wawancara bahasa Inggris, serta tata cara pemilihan universitas mitra terkemuka di kawasan Eropa, Amerika, dan Asia.\n\nDalam sambutannya, Wakil Rektor Bidang Kerja Sama dan Internasionalisasi UNRAM menegaskan komitmen universitas dalam memfasilitasi mahasiswa dengan pelatihan TOEFL/IELTS intensif serta pendampingan administrasi penuh. Sejumlah alumni IISMA tahun sebelumnya turut berbagi tips praktis mengenai adaptasi budaya dan keberhasilan studi di kampus tujuan.",
-        "en": "The Office of International Affairs (OIA) of Universitas Mataram officially hosted a comprehensive briefing session for the Indonesian International Student Mobility Awards (IISMA) 2026. Attended by over 350 undergraduates across diverse faculties, the session spotlighted strategic essay formulating, English interview simulations, and tailored university selection across top-tier partner institutions in Europe, the Americas, and Asia.\n\nIn his opening keynote, UNRAM's Vice Rector for Cooperation and Global Affairs emphasized institutional commitments to provide subsidized language certifications and seamless credit transfer frameworks. Awardees from preceding cohorts shared firsthand reflections on cross-cultural adaptation and academic excellence abroad."
-      },
-      "image": "/images/news-1.jpg",
-      "author": "Tim Humas & Media KUI UNRAM"
-    },
     {
       "id": "2",
       "category": {
