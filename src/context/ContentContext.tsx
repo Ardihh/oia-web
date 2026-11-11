@@ -48,6 +48,12 @@ export interface NewsArticle {
   imageCredit?: string;
 }
 
+export interface AdmissionStepItem {
+  id: string;
+  title: { id: string; en: string };
+  desc: { id: string; en: string };
+}
+
 export interface SiteContent {
   hero: {
     badge: { id: string; en: string };
@@ -59,6 +65,7 @@ export interface SiteContent {
     trustPill: { id: string; en: string };
     bgImage: string;
   };
+  admissionSteps?: AdmissionStepItem[];
   about: {
     kicker: { id: string; en: string };
     title: { id: string; en: string };
@@ -257,6 +264,40 @@ export const defaultSiteContent: SiteContent = {
     },
     bgImage: '/images/hero-campus.jpg',
   },
+  admissionSteps: [
+    {
+      id: 'step-1',
+      title: { id: 'Pilih Program Studi', en: 'Explore Study Programs' },
+      desc: {
+        id: 'Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM.',
+        en: 'Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM.',
+      },
+    },
+    {
+      id: 'step-2',
+      title: { id: 'Persiapan Dokumen', en: 'Prepare Requirements' },
+      desc: {
+        id: 'Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi.',
+        en: 'Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation.',
+      },
+    },
+    {
+      id: 'step-3',
+      title: { id: 'Pengajuan Berkas Online', en: 'Submit Online Dossier' },
+      desc: {
+        id: 'Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.',
+        en: 'Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents.',
+      },
+    },
+    {
+      id: 'step-4',
+      title: { id: 'Izin Belajar & Kedatangan', en: 'Study Permit & Arrival' },
+      desc: {
+        id: 'Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).',
+        en: 'After the Letter of Acceptance (LoA) is issued, the IAO team assists with the Ministry of Education study permit and e-Visa (KITAS).',
+      },
+    },
+  ],
   about: {
     kicker: { id: 'Tentang Kami', en: 'About Us' },
     title: {
@@ -547,6 +588,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
             ...defaultSiteContent.contact,
             ...(parsed.contact || {}),
           },
+          admissionSteps: Array.isArray(parsed.admissionSteps) && parsed.admissionSteps.length > 0
+            ? parsed.admissionSteps
+            : defaultSiteContent.admissionSteps,
           guides: Array.isArray(parsed.guides) ? parsed.guides : defaultGuides,
           news: Array.isArray(parsed.news) ? parsed.news : defaultNews,
         };

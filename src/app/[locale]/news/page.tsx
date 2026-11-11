@@ -4,11 +4,11 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
-import { ArrowLeft, ArrowRight, Calendar, Tag, User, Share2, Check, BookOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, Tag, User, Share2, Check, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { useSiteContent, defaultNews, NewsArticle } from '@/context/ContentContext';
-import { isHtmlContent, sanitizeHtml } from '@/lib/newsUtils';
+import { isHtmlContent, sanitizeHtml, translateText, translateHtml } from '@/lib/newsUtils';
 
 function NewsContent() {
   const locale = useLocale();
@@ -46,6 +46,98 @@ function NewsContent() {
     ? articles.find((a) => a.id === articleId) || articles[0]
     : null;
 
+  // On-the-fly translation state (if article is in EN and user switches to ID, or vice versa)
+  const [onFlyTranslated, setOnFlyTranslated] = useState<{
+    articleId: string;
+    lang: string;
+    title?: string;
+    summary?: string;
+    content?: string;
+  } | null>(null);
+  const [isTranslatingOnFly, setIsTranslatingOnFly] = useState(false);
+
+  useEffect(() => {
+    if (!currentArticle) return;
+
+    const targetLang = lang;
+    const sourceLang = isEn ? 'id' : 'en';
+
+    const targetTitle = typeof currentArticle.title === 'object' ? currentArticle.title?.[targetLang]?.trim() : '';
+    const sourceTitle = typeof currentArticle.title === 'object' ? currentArticle.title?.[sourceLang]?.trim() : (typeof currentArticle.title === 'string' ? currentArticle.title : '');
+
+    const targetContent = typeof currentArticle.content === 'object' ? currentArticle.content?.[targetLang]?.trim() : '';
+    const sourceContent = typeof currentArticle.content === 'object' ? currentArticle.content?.[sourceLang]?.trim() : '';
+
+    const needsTranslation = (!targetTitle || !targetContent || targetContent === '<p></p>') && Boolean(sourceTitle || sourceContent);
+
+    if (needsTranslation && sourceLang !== targetLang) {
+      if (onFlyTranslated?.articleId === currentArticle.id && onFlyTranslated?.lang === targetLang) {
+        return;
+      }
+
+      let isMounted = true;
+      setIsTranslatingOnFly(true);
+
+      const doTranslate = async () => {
+        try {
+          const trTitle = targetTitle || (sourceTitle ? await translateText(sourceTitle, sourceLang, targetLang) : '');
+          const trSummary = (typeof currentArticle.summary === 'object' && currentArticle.summary?.[targetLang]?.trim())
+            || (typeof currentArticle.summary === 'object' && currentArticle.summary?.[sourceLang]
+                ? await translateText(currentArticle.summary[sourceLang], sourceLang, targetLang)
+                : '');
+          const trContent = (targetContent && targetContent !== '<p></p>')
+            ? targetContent
+            : (sourceContent ? await translateHtml(sourceContent, sourceLang, targetLang) : '');
+
+          if (isMounted) {
+            setOnFlyTranslated({
+              articleId: currentArticle.id,
+              lang: targetLang,
+              title: trTitle,
+              summary: trSummary,
+              content: trContent,
+            });
+
+            // Persist the translated article in localStorage so subsequent loads are instant
+            const updatedArticle: NewsArticle = {
+              ...currentArticle,
+              title: {
+                id: targetLang === 'id' ? trTitle : (currentArticle.title?.id || ''),
+                en: targetLang === 'en' ? trTitle : (currentArticle.title?.en || ''),
+              },
+              summary: {
+                id: targetLang === 'id' ? trSummary : (currentArticle.summary?.id || ''),
+                en: targetLang === 'en' ? trSummary : (currentArticle.summary?.en || ''),
+              },
+              content: {
+                id: targetLang === 'id' ? trContent : (currentArticle.content?.id || ''),
+                en: targetLang === 'en' ? trContent : (currentArticle.content?.en || ''),
+              },
+            };
+
+            setArticles((prev) => {
+              const updatedList = prev.map((a) => (a.id === updatedArticle.id ? updatedArticle : a));
+              try {
+                localStorage.setItem('unram_custom_news', JSON.stringify(updatedList));
+              } catch {}
+              return updatedList;
+            });
+          }
+        } catch {
+          // Silently fall back
+        } finally {
+          if (isMounted) setIsTranslatingOnFly(false);
+        }
+      };
+
+      doTranslate();
+
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [currentArticle?.id, lang]);
+
   const handleShare = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(window.location.href);
@@ -65,11 +157,12 @@ function NewsContent() {
 
   // 1. DETAIL ARTICLE VIEW
   if (currentArticle) {
-    const title = getField(currentArticle.title);
-    const summary = getField(currentArticle.summary);
+    const isAutoActive = onFlyTranslated?.articleId === currentArticle.id && onFlyTranslated?.lang === lang;
+    const title = (isAutoActive && onFlyTranslated?.title) ? onFlyTranslated.title : getField(currentArticle.title);
+    const summary = (isAutoActive && onFlyTranslated?.summary) ? onFlyTranslated.summary : getField(currentArticle.summary);
     const category = getField(currentArticle.category);
     const date = getField(currentArticle.date);
-    const rawContent = getField(currentArticle.content);
+    const rawContent = (isAutoActive && onFlyTranslated?.content) ? onFlyTranslated.content : getField(currentArticle.content);
     const author = currentArticle.author || (isEn ? 'IAO UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
     const otherArticles = articles
       .filter((a) => a.id !== currentArticle.id && a.status !== 'draft')
@@ -133,10 +226,24 @@ function NewsContent() {
             </h1>
 
             {/* Author Byline */}
-            <div className="flex items-center gap-3 pt-4 border-t border-hairline text-xs text-ink-soft">
+            <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-hairline text-xs text-ink-soft">
               <span className="font-medium text-ink">{author}</span>
               <span>&bull;</span>
               <span>Universitas Mataram, Lombok</span>
+
+              {isTranslatingOnFly && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium animate-pulse ml-auto sm:ml-2">
+                  <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                  <span>{isEn ? 'Translating article to English...' : 'Menerjemahkan artikel ke Bahasa Indonesia...'}</span>
+                </span>
+              )}
+
+              {isAutoActive && !isTranslatingOnFly && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium ml-auto sm:ml-2">
+                  <Sparkles className="w-3 h-3 text-emerald-600" />
+                  <span>{isEn ? 'Auto-translated' : 'Diterjemahkan otomatis'}</span>
+                </span>
+              )}
             </div>
           </div>
 

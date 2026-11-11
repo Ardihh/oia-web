@@ -1363,6 +1363,203 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* ── Deskripsi Kantor ── */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">
+                Deskripsi Tentang Kantor
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Paragraf 1 (ID)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={siteDraft.about.description1?.id || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, description1: { ...siteDraft.about.description1, id: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Deskripsi singkat tentang KUI/IAO UNRAM..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Paragraph 1 (EN)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={siteDraft.about.description1?.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, description1: { ...siteDraft.about.description1, en: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Short description about IAO UNRAM..."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Paragraf 2 (ID)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={siteDraft.about.description2?.id || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, description2: { ...siteDraft.about.description2, id: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Paragraf deskripsi tambahan..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Paragraph 2 (EN)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={siteDraft.about.description2?.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, description2: { ...siteDraft.about.description2, en: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Additional description paragraph..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Visi ── */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">Visi</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Judul Visi (ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.about.visionTitle?.id || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, visionTitle: { ...siteDraft.about.visionTitle, id: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Visi Internasional"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Vision Title (EN)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.about.visionTitle?.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, visionTitle: { ...siteDraft.about.visionTitle, en: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Our Vision"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Deskripsi Visi (ID)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={siteDraft.about.visionDesc?.id || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, visionDesc: { ...siteDraft.about.visionDesc, id: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Pernyataan visi..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Vision Description (EN)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={siteDraft.about.visionDesc?.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, visionDesc: { ...siteDraft.about.visionDesc, en: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Vision statement..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Misi Header ── */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">Judul Misi</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Judul Misi (ID)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.about.missionTitle?.id || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, missionTitle: { ...siteDraft.about.missionTitle, id: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Misi Strategis"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Mission Title (EN)
+                  </label>
+                  <input
+                    type="text"
+                    value={siteDraft.about.missionTitle?.en || ''}
+                    onChange={(e) =>
+                      setSiteDraft({
+                        ...siteDraft,
+                        about: { ...siteDraft.about, missionTitle: { ...siteDraft.about.missionTitle, en: e.target.value } },
+                      })
+                    }
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    placeholder="Our Mission"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Head of Office Photo & Author */}
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">
@@ -1547,6 +1744,158 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB 3B: ADMISSION STEPS ==================== */}
+        {activeTab === 'about' && (
+          <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="font-heading font-bold text-xl text-slate-900">
+                  Langkah Penerimaan Mahasiswa Internasional
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Kelola langkah-langkah alur pendaftaran yang tampil di halaman publik bagian &ldquo;Penerimaan&rdquo;.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                      ? siteDraft.admissionSteps
+                      : (defaultSiteContent.admissionSteps || []);
+                    const newStep = {
+                      id: `step-${Date.now()}`,
+                      title: { id: 'Langkah Baru', en: 'New Step' },
+                      desc: { id: 'Deskripsi langkah baru...', en: 'New step description...' },
+                    };
+                    setSiteDraft({ ...siteDraft, admissionSteps: [...base, newStep] });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-unram-900 text-white text-xs font-bold hover:bg-unram-800"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Langkah</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSections}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {(Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                ? siteDraft.admissionSteps
+                : (defaultSiteContent.admissionSteps || [])
+              ).map((step, idx) => (
+                <div key={step.id || idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="w-8 h-8 rounded-full bg-unram-100 text-unram-900 text-sm font-bold flex items-center justify-center">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                          ? siteDraft.admissionSteps
+                          : (defaultSiteContent.admissionSteps || []);
+                        setSiteDraft({ ...siteDraft, admissionSteps: base.filter((_, i) => i !== idx) });
+                      }}
+                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-1 text-xs font-semibold"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Judul Langkah (ID)
+                      </label>
+                      <input
+                        type="text"
+                        value={step.title?.id || ''}
+                        onChange={(e) => {
+                          const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                            ? siteDraft.admissionSteps
+                            : (defaultSiteContent.admissionSteps || []);
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], title: { ...updated[idx].title, id: e.target.value } };
+                          setSiteDraft({ ...siteDraft, admissionSteps: updated });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+                        placeholder="Judul langkah dalam Bahasa Indonesia"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Step Title (EN)
+                      </label>
+                      <input
+                        type="text"
+                        value={step.title?.en || ''}
+                        onChange={(e) => {
+                          const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                            ? siteDraft.admissionSteps
+                            : (defaultSiteContent.admissionSteps || []);
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], title: { ...updated[idx].title, en: e.target.value } };
+                          setSiteDraft({ ...siteDraft, admissionSteps: updated });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+                        placeholder="Step title in English"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Deskripsi (ID)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={step.desc?.id || ''}
+                        onChange={(e) => {
+                          const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                            ? siteDraft.admissionSteps
+                            : (defaultSiteContent.admissionSteps || []);
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], desc: { ...updated[idx].desc, id: e.target.value } };
+                          setSiteDraft({ ...siteDraft, admissionSteps: updated });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+                        placeholder="Penjelasan langkah ini..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Description (EN)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={step.desc?.en || ''}
+                        onChange={(e) => {
+                          const base = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+                            ? siteDraft.admissionSteps
+                            : (defaultSiteContent.admissionSteps || []);
+                          const updated = [...base];
+                          updated[idx] = { ...updated[idx], desc: { ...updated[idx].desc, en: e.target.value } };
+                          setSiteDraft({ ...siteDraft, admissionSteps: updated });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300"
+                        placeholder="Description of this step..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

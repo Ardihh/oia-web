@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, FileDown, FileText } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { useSiteContent, defaultGuides, GuideItem } from '@/context/ContentContext';
+import { useSiteContent, defaultGuides, GuideItem, defaultSiteContent } from '@/context/ContentContext';
 
 interface AdmissionProps {
   locale: string;
@@ -22,28 +22,16 @@ export function Admission({ locale }: AdmissionProps) {
       ? content.guides
       : defaultGuides;
 
-  const steps = [
-    {
-      num: '01',
-      title: t('steps.0.title'),
-      desc: t('steps.0.desc'),
-    },
-    {
-      num: '02',
-      title: t('steps.1.title'),
-      desc: t('steps.1.desc'),
-    },
-    {
-      num: '03',
-      title: t('steps.2.title'),
-      desc: t('steps.2.desc'),
-    },
-    {
-      num: '04',
-      title: t('steps.3.title'),
-      desc: t('steps.3.desc'),
-    },
-  ];
+  // Use dynamic steps from ContentContext if available, otherwise fall back to i18n strings
+  const sourceSteps = Array.isArray(content.admissionSteps) && content.admissionSteps.length > 0
+    ? content.admissionSteps
+    : defaultSiteContent.admissionSteps!;
+
+  const steps = sourceSteps.map((step, index) => ({
+    num: String(index + 1).padStart(2, '0'),
+    title: typeof step.title === 'object' ? (step.title[lang] || step.title.en || step.title.id || '') : String(step.title),
+    desc: typeof step.desc === 'object' ? (step.desc[lang] || step.desc.en || step.desc.id || '') : String(step.desc),
+  }));
 
   const getField = (field: any) => {
     if (!field) return '';

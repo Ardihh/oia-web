@@ -12,8 +12,29 @@ export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
 
   const switchLocale = (newLocale: string) => {
     if (newLocale === currentLocale) return;
-    const hash = typeof window !== 'undefined' ? window.location.hash || '' : '';
-    window.location.href = `/${newLocale}/${hash}`;
+    if (typeof window === 'undefined') return;
+
+    const pathname = window.location.pathname || '/';
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+
+    // Split pathname into segments, e.g. ["en", "news"] or ["id"]
+    const segments = pathname.split('/').filter(Boolean);
+
+    let newPath = '';
+    if (segments.length > 0 && (segments[0] === 'en' || segments[0] === 'id')) {
+      segments[0] = newLocale;
+      newPath = '/' + segments.join('/');
+      // Preserve trailing slash if original pathname had one
+      if (pathname.endsWith('/') && !newPath.endsWith('/')) {
+        newPath += '/';
+      }
+    } else {
+      // If there is no locale prefix in pathname (e.g. "/" or "/news")
+      newPath = `/${newLocale}${pathname.startsWith('/') ? pathname : '/' + pathname}`;
+    }
+
+    window.location.href = `${newPath}${search}${hash}`;
   };
 
   return (
