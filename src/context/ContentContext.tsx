@@ -579,10 +579,26 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [isAdminPreview, setIsAdminPreview] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('unram_hide_preview_banner') === 'true') {
+        setIsBannerDismissed(true);
+      }
+    } catch {}
+  }, []);
+
+  const handleDismissBanner = () => {
+    setIsBannerDismissed(true);
+    try {
+      sessionStorage.setItem('unram_hide_preview_banner', 'true');
+    } catch {}
+  };
+
   const handleExitAdminPreview = () => {
     try {
       sessionStorage.removeItem('unram_admin_auth');
       localStorage.removeItem('unram_admin_auth');
+      sessionStorage.removeItem('unram_hide_preview_banner');
       setIsAdminPreview(false);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('unram_content_changed'));
@@ -734,9 +750,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
             </button>
             <button
               type="button"
-              onClick={() => setIsBannerDismissed(true)}
+              onClick={handleDismissBanner}
               className="p-1 text-slate-400 hover:text-white rounded-md transition-colors ml-1"
-              title="Tutup banner peringatan ini"
+              title="Sembunyikan banner ini"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

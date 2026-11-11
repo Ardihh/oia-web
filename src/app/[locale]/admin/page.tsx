@@ -1308,7 +1308,7 @@ export default function AdminPage() {
         <div className="bg-emerald-600 text-white py-2.5 px-4 text-center text-xs font-bold shadow-sm flex items-center justify-center gap-2 animate-in fade-in duration-200">
           <CheckCircle2 className="w-4 h-4" />
           <span>
-            Perubahan berhasil disimpan! Website Anda kini menampilkan konten dan foto terbaru.
+            Draf berhasil disimpan! Pratinjau draf aktif di website Anda. Untuk rilis ke publik umum di server, buka tab &ldquo;Paket Publikasi & Cadangan&rdquo; lalu buat paket ZIP.
           </span>
         </div>
       )}
