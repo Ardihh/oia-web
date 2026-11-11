@@ -4,7 +4,8 @@ export default function RootPage() {
       <head>
         <meta httpEquiv="refresh" content="0; url=/en/" />
         <link rel="canonical" href="/en/" />
-        <link rel="icon" href="/logo.png" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="shortcut icon" href="/favicon.ico" />
         <title>Office of International Affairs - Universitas Mataram</title>
       </head>
       <body className="bg-white flex items-center justify-center min-h-screen font-sans text-slate-600">
