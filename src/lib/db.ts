@@ -194,6 +194,48 @@ export async function getBlobFromDb(path: string): Promise<Blob | null> {
 }
 
 /**
+ * Convert any IndexedDB /uploads/ blob references into data URLs for live browser preview
+ */
+export async function resolveDraftBlobs(content: SiteContent): Promise<SiteContent> {
+  if (!content || typeof window === 'undefined') return content;
+  const resolved = JSON.parse(JSON.stringify(content)) as SiteContent;
+
+  const resolveOne = async (url: string | undefined): Promise<string> => {
+    if (!url || typeof url !== 'string') return url || '';
+    if (url.startsWith('/uploads/')) {
+      try {
+        const blob = await getBlobFromDb(url);
+        if (blob) {
+          return await new Promise<string>((res) => {
+            const reader = new FileReader();
+            reader.onload = () => res(reader.result as string);
+            reader.onerror = () => res(url);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch {}
+    }
+    return url;
+  };
+
+  if (resolved.about?.headPhoto) {
+    resolved.about.headPhoto = await resolveOne(resolved.about.headPhoto);
+  }
+  if (resolved.hero?.bgImage) {
+    resolved.hero.bgImage = await resolveOne(resolved.hero.bgImage);
+  }
+  if (Array.isArray(resolved.news)) {
+    for (const item of resolved.news) {
+      if (item.image) {
+        item.image = await resolveOne(item.image);
+      }
+    }
+  }
+
+  return resolved;
+}
+
+/**
  * Get all stored blobs (used for building the ZIP publish bundle)
  */
 export async function getAllBlobsFromDb(): Promise<StoredBlob[]> {

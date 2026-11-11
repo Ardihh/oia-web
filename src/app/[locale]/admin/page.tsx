@@ -64,6 +64,7 @@ import {
   setMetadata,
   clearLocalDraft,
   getStorageEstimate,
+  resolveDraftBlobs,
 } from '@/lib/db';
 import { compressImage, computeContentHash } from '@/lib/imageCompression';
 import {
@@ -190,6 +191,8 @@ export default function AdminPage() {
       localStorage.getItem('unram_admin_auth');
     if (savedAuth === 'true') {
       setIsAuthenticated(true);
+      sessionStorage.setItem('unram_admin_auth', 'true');
+      localStorage.setItem('unram_admin_auth', 'true');
     }
 
     const initData = async () => {
@@ -225,15 +228,17 @@ export default function AdminPage() {
           }
 
           await saveDraftToDb(initial);
-          setSiteDraft(initial);
-          if (Array.isArray(initial.news)) setNewsList(initial.news);
+          const resolvedInitial = await resolveDraftBlobs(initial);
+          setSiteDraft(resolvedInitial);
+          if (Array.isArray(resolvedInitial.news)) setNewsList(resolvedInitial.news);
 
           if (hadLegacy) {
             showToast('Draf lama dari penyimpanan lokal berhasil dimigrasikan ke IndexedDB.');
           }
         } else {
-          setSiteDraft(existingDraft);
-          if (Array.isArray(existingDraft.news)) setNewsList(existingDraft.news);
+          const resolved = await resolveDraftBlobs(existingDraft);
+          setSiteDraft(resolved);
+          if (Array.isArray(resolved.news)) setNewsList(resolved.news);
         }
 
         // Load export metadata
@@ -370,6 +375,11 @@ export default function AdminPage() {
       setSiteDraft(finalDraft);
       setHasUnexportedChanges(true);
       await setMetadata('has_unexported_changes', true);
+      sessionStorage.setItem('unram_admin_auth', 'true');
+      localStorage.setItem('unram_admin_auth', 'true');
+      try {
+        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
+      } catch {}
       setSaveSuccess(true);
       setStorageError(null);
       refreshStorage();
@@ -390,7 +400,7 @@ export default function AdminPage() {
       try {
         const result = await compressImage(file);
         await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-        onLoad(result.path);
+        onLoad(result.dataUrl);
         setHasUnexportedChanges(true);
         refreshStorage();
         showToast(

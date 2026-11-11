@@ -152,7 +152,7 @@ export function TiptapEditor({
     try {
       const result = await compressImage(file);
       await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-      setImageUrl(result.path);
+      setImageUrl(result.dataUrl);
       setImagePreview(result.dataUrl);
     } catch (err: any) {
       setCompressError(err.message || 'Gagal memproses gambar');

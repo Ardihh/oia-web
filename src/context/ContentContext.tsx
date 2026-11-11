@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getDraftFromDb, saveDraftToDb } from '@/lib/db';
+import { getDraftFromDb, saveDraftToDb, resolveDraftBlobs } from '@/lib/db';
 import { validateSiteContent, CURRENT_SCHEMA_VERSION } from '@/lib/schemaValidator';
 
 export interface StatItem {
@@ -600,7 +600,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         try {
           const draft = await getDraftFromDb();
           if (draft) {
-            setContent(draft);
+            const resolved = await resolveDraftBlobs(draft);
+            setContent(resolved);
             return;
           }
         } catch (e) {
@@ -639,7 +640,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         try {
           const draft = await getDraftFromDb();
           if (draft) {
-            setContent(draft);
+            const resolved = await resolveDraftBlobs(draft);
+            setContent(resolved);
             setIsAdminPreview(true);
           }
         } catch {}

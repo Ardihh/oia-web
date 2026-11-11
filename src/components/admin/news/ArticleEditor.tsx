@@ -339,7 +339,7 @@ export function ArticleEditor({
     try {
       const result = await compressImage(file);
       await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-      updateArticle({ image: result.path });
+      updateArticle({ image: result.dataUrl });
       showToast(
         `Foto sampul dikompresi (${Math.round(result.originalSize / 1024)} KB → ${Math.round(result.compressedSize / 1024)} KB)`
       );
