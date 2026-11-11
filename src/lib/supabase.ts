@@ -398,7 +398,15 @@ export async function sanitizeAndUploadAllDataUrls(content: any): Promise<any> {
 export async function uploadMedia(
   file: File,
   category: 'images' | 'files' = 'images'
-): Promise<{ success: boolean; path: string; publicUrl: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  path: string;
+  publicUrl: string;
+  originalSize?: number;
+  compressedSize?: number;
+  reductionPercent?: number;
+  error?: string;
+}> {
   const supabase = getSupabase();
   if (!supabase) {
     return { success: false, path: '', publicUrl: '', error: 'Koneksi Supabase tidak aktif' };
@@ -417,12 +425,21 @@ export async function uploadMedia(
   try {
     let uploadBlob: Blob = file;
     let ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    let originalSize = file.size;
+    let compressedSize = file.size;
 
     if (category === 'images' && file.type.startsWith('image/')) {
       const compResult = await compressImage(file);
       uploadBlob = compResult.blob;
       ext = compResult.filename.split('.').pop() || 'webp';
+      originalSize = compResult.originalSize;
+      compressedSize = compResult.compressedSize;
     }
+
+    const reductionPercent =
+      originalSize > compressedSize
+        ? Math.round(((originalSize - compressedSize) / originalSize) * 100)
+        : 0;
 
     const arrayBuffer = await uploadBlob.arrayBuffer();
     const hash = await computeContentHash(arrayBuffer);
@@ -444,6 +461,9 @@ export async function uploadMedia(
       success: true,
       path: `site-media/${storagePath}`,
       publicUrl,
+      originalSize,
+      compressedSize,
+      reductionPercent,
     };
   } catch (err: any) {
     return { success: false, path: '', publicUrl: '', error: err?.message || 'Gagal mengunggah berkas' };

@@ -597,7 +597,7 @@ export default function AdminPage() {
     }
   };
 
-  // Image File helper: uploaded directly to Supabase Storage bucket 'site-media'
+  // Image File helper: compressed & uploaded directly to Supabase Storage bucket 'site-media'
   const handleImageFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onLoad: (publicUrl: string) => void
@@ -611,7 +611,11 @@ export default function AdminPage() {
           return;
         }
         onLoad(result.publicUrl);
-        showToast('Gambar berhasil diunggah ke Supabase Storage!');
+        const origKb = Math.round((result.originalSize || file.size) / 1024);
+        const compKb = Math.round((result.compressedSize || file.size) / 1024);
+        showToast(
+          `Foto berhasil dikompresi (${origKb} KB → ${compKb} KB, hemat ${result.reductionPercent || 0}%) & tersimpan di storage!`
+        );
       } catch (err: any) {
         alert(err.message || 'Gagal memproses gambar.');
       }

@@ -339,7 +339,11 @@ export function ArticleEditor({
       const result = await uploadMedia(file, 'images');
       if (result.success && result.publicUrl) {
         updateArticle({ image: result.publicUrl });
-        showToast('Foto sampul berhasil dikompresi dan diunggah ke storage.');
+        const origKb = Math.round((result.originalSize || file.size) / 1024);
+        const compKb = Math.round((result.compressedSize || file.size) / 1024);
+        showToast(
+          `Foto sampul berhasil dikompresi (${origKb} KB → ${compKb} KB, hemat ${result.reductionPercent || 0}%) & diunggah!`
+        );
       } else {
         showToast(result.error || 'Gagal mengunggah gambar ke storage.', 'error');
       }
