@@ -177,7 +177,7 @@ function NewsContent() {
 
             {isHtmlContent(rawContent) ? (
               <div
-                className="prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal"
+                className="article-prose prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(rawContent) }}
               />
             ) : (

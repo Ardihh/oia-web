@@ -739,6 +739,7 @@ export function ArticleEditor({
               </div>
 
               <TiptapEditor
+                key={editorLang}
                 content={currentContent}
                 placeholder={
                   editorLang === 'en'

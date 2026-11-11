@@ -89,3 +89,134 @@ section[id] {
   scroll-margin-top: 5rem;
 }
 
+/* =========================================================================
+   Rich Text & Tiptap Editorial Article Typography
+   Ensures headings, lists, quotes, links, and inline images render with
+   full formatting regardless of Tailwind Preflight resets.
+   ========================================================================= */
+.tiptap,
+.article-prose {
+  color: var(--ink);
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+
+.tiptap:focus {
+  outline: none;
+}
+
+.tiptap h2,
+.article-prose h2 {
+  font-family: var(--font-display, 'Newsreader', Georgia, serif);
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  line-height: 1.28 !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #0F1A2E !important;
+  letter-spacing: -0.015em;
+}
+
+.tiptap h3,
+.article-prose h3 {
+  font-family: var(--font-display, 'Newsreader', Georgia, serif);
+  font-size: 1.35rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+  color: #0F1A2E !important;
+  letter-spacing: -0.01em;
+}
+
+.tiptap p,
+.article-prose p {
+  font-size: 1.125rem !important;
+  line-height: 1.75 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #1F2937 !important;
+}
+
+.tiptap ul,
+.article-prose ul {
+  list-style-type: disc !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.875rem !important;
+  margin-bottom: 0.875rem !important;
+}
+
+.tiptap ol,
+.article-prose ol {
+  list-style-type: decimal !important;
+  padding-left: 1.75rem !important;
+  margin-top: 0.875rem !important;
+  margin-bottom: 0.875rem !important;
+}
+
+.tiptap li,
+.article-prose li {
+  display: list-item !important;
+  margin-top: 0.35rem !important;
+  margin-bottom: 0.35rem !important;
+  font-size: 1.125rem !important;
+  line-height: 1.75 !important;
+}
+
+.tiptap li > p,
+.article-prose li > p {
+  margin: 0 !important;
+  display: inline;
+}
+
+.tiptap blockquote,
+.article-prose blockquote {
+  border-left: 3px solid #2A4E8C !important;
+  padding-left: 1.25rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 1.25rem !important;
+  font-family: var(--font-display, 'Newsreader', Georgia, serif);
+  font-style: italic !important;
+  font-size: 1.15rem !important;
+  line-height: 1.7 !important;
+  color: #334155 !important;
+  background-color: rgba(240, 244, 250, 0.5) !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+.tiptap a,
+.article-prose a {
+  color: #2A4E8C !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  font-weight: 500 !important;
+  transition: color 0.15s ease;
+}
+
+.tiptap a:hover,
+.article-prose a:hover {
+  color: #142547 !important;
+}
+
+.tiptap img,
+.article-prose img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 6px !important;
+  margin: 1.5rem 0 !important;
+  border: 1px solid #E4E2DB !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+  display: block;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94A3B8;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+

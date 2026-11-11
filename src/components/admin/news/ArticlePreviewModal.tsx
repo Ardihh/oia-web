@@ -280,7 +280,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
             {/* Body Content */}
             {isHtml ? (
               <div
-                className="prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal font-sans"
+                className="article-prose prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal font-sans"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
               />
             ) : (
