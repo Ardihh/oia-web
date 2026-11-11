@@ -141,16 +141,25 @@ export function Admission({ locale }: AdmissionProps) {
                       {guide.updatedAt ? `Update: ${guide.updatedAt}` : 'Terbaru 2026'}
                     </span>
 
-                    <a
-                      href={guide.fileUrl || '#contact'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download={guideTitle}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[6px] bg-unram-50 hover:bg-unram-100 border border-hairline text-unram-600 text-xs font-semibold uppercase tracking-wider transition-colors"
-                    >
-                      <FileDown className="w-3.5 h-3.5" />
-                      <span>{isEn ? 'Download' : 'Unduh File'}</span>
-                    </a>
+                    {guide.fileUrl &&
+                    guide.fileUrl.trim() !== '' &&
+                    !guide.fileUrl.startsWith('https://io.unram.ac.id') &&
+                    guide.fileUrl !== '#contact' ? (
+                      <a
+                        href={guide.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={guideTitle}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[6px] bg-unram-50 hover:bg-unram-100 border border-hairline text-unram-600 text-xs font-semibold uppercase tracking-wider transition-colors"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        <span>{isEn ? 'Download' : 'Unduh File'}</span>
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-ink-soft italic">
+                        {isEn ? 'Available on request' : 'Tersedia via narahubung'}
+                      </span>
+                    )}
                   </div>
                 </motion.div>
               );

@@ -2018,7 +2018,7 @@ export default function AdminPage() {
                       required
                       value={guideForm.fileUrl.startsWith('data:') ? '(File Dokumen Terunggah)' : guideForm.fileUrl}
                       onChange={(e) => setGuideForm({ ...guideForm, fileUrl: e.target.value })}
-                      placeholder="https://io.unram.ac.id/documents/guidebook.pdf"
+                      placeholder="https://oia.unram.ac.id/documents/guidebook.pdf"
                       className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
                     />
                     <label className="w-full sm:w-auto flex-shrink-0 cursor-pointer inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider transition-colors">

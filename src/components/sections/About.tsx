@@ -16,11 +16,11 @@ export function About({ locale }: AboutProps) {
   const { content } = useSiteContent();
   const lang = locale === 'en' ? 'en' : 'id';
 
-  const desc1 = content.about.description1[lang] || t('description1');
-  const desc2 = content.about.description2[lang] || t('description2');
-  const visionTitle = content.about.visionTitle[lang] || t('visionTitle');
-  const visionDesc = content.about.visionDesc[lang] || t('visionDesc');
-  const missionTitle = content.about.missionTitle[lang] || t('missionTitle');
+  const desc1 = content.about?.description1?.[lang] || t('description1');
+  const desc2 = content.about?.description2?.[lang] || t('description2');
+  const visionTitle = content.about?.visionTitle?.[lang] || t('visionTitle');
+  const visionDesc = content.about?.visionDesc?.[lang] || t('visionDesc');
+  const missionTitle = content.about?.missionTitle?.[lang] || t('missionTitle');
   const missionItems =
     Array.isArray(content.about?.missionItems?.[lang]) && content.about.missionItems[lang].length > 0
       ? content.about.missionItems[lang]
@@ -30,11 +30,11 @@ export function About({ locale }: AboutProps) {
           t('missionItems.2'),
           t('missionItems.3'),
         ];
-  const messageQuote = content.about.messageQuote[lang] || t('messageQuote');
-  const messageAuthor = content.about.messageAuthor[lang] || t('messageAuthor');
-  const messageRole = content.about.messageRole[lang] || t('messageRole');
-  const messageOffice = content.about.messageOffice[lang] || t('messageOffice');
-  const headPhoto = content.about.headPhoto || '/images/head-of-office.jpg';
+  const messageQuote = content.about?.messageQuote?.[lang] || t('messageQuote');
+  const messageAuthor = content.about?.messageAuthor?.[lang] || t('messageAuthor');
+  const messageRole = content.about?.messageRole?.[lang] || t('messageRole');
+  const messageOffice = content.about?.messageOffice?.[lang] || t('messageOffice');
+  const headPhoto = content.about?.headPhoto || '/images/head-of-office.jpg';
 
   return (
     <section id="about" className="py-20 lg:py-28 bg-unram-50 border-b border-hairline">
@@ -42,7 +42,7 @@ export function About({ locale }: AboutProps) {
         {/* Section Heading with Numbered Eyebrow (DESIGN.md) */}
         <SectionHeading
           kicker={`02 — ${t('kicker')}`}
-          title={content.about.title[lang] || t('title')}
+          title={content.about?.title?.[lang] || t('title')}
           className="mb-14 lg:mb-16"
         />
 

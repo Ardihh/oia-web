@@ -448,11 +448,17 @@ export async function uploadMedia(
     const { error: uploadError } = await supabase.storage
       .from('site-media')
       .upload(storagePath, uploadBlob, {
-        upsert: true,
+        cacheControl: '31536000',
+        upsert: false,
         contentType: uploadBlob.type || file.type,
       });
 
-    if (uploadError) {
+    // If file already exists with same content-hash, it's safe to continue
+    if (
+      uploadError &&
+      !uploadError.message?.toLowerCase().includes('already exists') &&
+      !uploadError.message?.toLowerCase().includes('duplicate')
+    ) {
       return { success: false, path: '', publicUrl: '', error: uploadError.message };
     }
 

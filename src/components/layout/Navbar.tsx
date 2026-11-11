@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { Menu, X, ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { cn } from '@/lib/utils';
+import { SECTIONS, sectionHref } from '@/lib/routes';
 
 interface NavbarProps {
   locale: string;
@@ -19,37 +21,12 @@ export function Navbar({ locale }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdminPath, setIsAdminPath] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>('about');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.pathname.includes('/admin')) {
       setIsAdminPath(true);
     }
-
-    const handleActiveChange = (e: any) => {
-      if (e.detail) setActiveSection(e.detail);
-    };
-    window.addEventListener('unram_active_section_changed', handleActiveChange);
-    return () => window.removeEventListener('unram_active_section_changed', handleActiveChange);
   }, []);
-
-  const isHomePage =
-    pathname === `/${locale}` || pathname === `/${locale}/` || pathname === '/';
-
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    const targetKey = href.replace('#', '');
-    setMobileMenuOpen(false);
-
-    if (isHomePage) {
-      e.preventDefault();
-      window.dispatchEvent(
-        new CustomEvent('unram_navigate_section', { detail: targetKey })
-      );
-    } else {
-      e.preventDefault();
-      window.location.href = `/${locale}/#${targetKey}`;
-    }
-  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -70,25 +47,17 @@ export function Navbar({ locale }: NavbarProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Suppress public navigation bar on admin pages (called after all hooks to respect Rules of Hooks)
+  // Suppress public navigation bar on admin pages
   if ((pathname && pathname.includes('/admin')) || isAdminPath) {
     return null;
   }
 
-  const navLinks = [
-    { href: '#about', label: t('links.about') },
-    { href: '#services', label: t('links.services') },
-    { href: '#stats', label: t('links.stats') },
-    { href: '#partners', label: t('links.partners') },
-    { href: '#news', label: t('links.news') },
-    { href: '#admission', label: t('links.admission') },
-    { href: '#faq', label: t('links.faq') },
-    { href: '#contact', label: t('links.contact') },
-  ];
-
-  const handleLinkClick = () => {
-    setMobileMenuOpen(false);
-  };
+  const navLinks = SECTIONS.map((sec) => ({
+    key: sec.key,
+    slug: sec.slug,
+    href: sectionHref(locale, sec.key),
+    label: t(`links.${sec.navKey}`),
+  }));
 
   return (
     <header
@@ -100,9 +69,10 @@ export function Navbar({ locale }: NavbarProps) {
       <Container className="w-full">
         <div className="flex items-center justify-between">
           {/* Logo & Brand Identity */}
-          <a
+          <Link
             href={`/${locale}/`}
             className="flex items-center gap-3.5 group focus-visible:rounded"
+            onClick={() => setMobileMenuOpen(false)}
           >
             <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center">
               <Image
@@ -122,7 +92,7 @@ export function Navbar({ locale }: NavbarProps) {
                 {t('brandSub')}
               </span>
             </div>
-          </a>
+          </Link>
 
           {/* Desktop Navigation Links */}
           <nav
@@ -130,13 +100,12 @@ export function Navbar({ locale }: NavbarProps) {
             className="hidden lg:flex items-center space-x-1"
           >
             {navLinks.map((link) => {
-              const key = link.href.replace('#', '');
-              const isActive = activeSection === key;
+              const isActive = pathname.startsWith(`/${locale}/${link.slug}`);
               return (
-                <a
-                  key={link.href}
-                  href={isHomePage ? link.href : `/${locale}/${link.href}`}
-                  onClick={(e) => handleNavClick(e, link.href)}
+                <Link
+                  key={link.key}
+                  href={link.href}
+                  aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'px-2.5 py-1 text-sm transition-colors rounded-[4px]',
                     isActive
@@ -145,7 +114,7 @@ export function Navbar({ locale }: NavbarProps) {
                   )}
                 >
                   {link.label}
-                </a>
+                </Link>
               );
             })}
           </nav>
@@ -153,14 +122,13 @@ export function Navbar({ locale }: NavbarProps) {
           {/* Desktop Right Controls (Language Switcher + Contact CTA) */}
           <div className="hidden lg:flex items-center gap-5">
             <LanguageSwitcher />
-            <a
-              href={isHomePage ? '#contact' : `/${locale}/#contact`}
-              onClick={(e) => handleNavClick(e, '#contact')}
+            <Link
+              href={sectionHref(locale, 'contact')}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors focus-visible:ring-2 focus-visible:ring-unram-600 focus-visible:ring-offset-2"
             >
               <span>{t('contactBtn')}</span>
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-            </a>
+            </Link>
           </div>
 
           {/* Mobile Right Controls: Switcher + Menu Hamburger */}
@@ -187,13 +155,13 @@ export function Navbar({ locale }: NavbarProps) {
           <div className="lg:hidden fixed inset-x-0 top-[72px] bg-paper border-b border-hairline p-6 shadow-subtle animate-in fade-in duration-200">
             <nav className="flex flex-col space-y-3 pb-4">
               {navLinks.map((link) => {
-                const key = link.href.replace('#', '');
-                const isActive = activeSection === key;
+                const isActive = pathname.startsWith(`/${locale}/${link.slug}`);
                 return (
-                  <a
-                    key={link.href}
-                    href={isHomePage ? link.href : `/${locale}/${link.href}`}
-                    onClick={(e) => handleNavClick(e, link.href)}
+                  <Link
+                    key={link.key}
+                    href={link.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setMobileMenuOpen(false)}
                     className={cn(
                       'font-serif text-xl py-1 transition-colors flex items-center justify-between',
                       isActive ? 'text-unram-600 font-medium' : 'text-ink font-normal hover:text-unram-600'
@@ -201,18 +169,18 @@ export function Navbar({ locale }: NavbarProps) {
                   >
                     <span>{link.label}</span>
                     {isActive && <span className="text-xs font-mono font-normal text-unram-600">●</span>}
-                  </a>
+                  </Link>
                 );
               })}
               <div className="pt-4 border-t border-hairline">
-                <a
-                  href={isHomePage ? '#contact' : `/${locale}/#contact`}
-                  onClick={(e) => handleNavClick(e, '#contact')}
+                <Link
+                  href={sectionHref(locale, 'contact')}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold uppercase tracking-wider text-white bg-accent hover:bg-accent-hover rounded-[6px] transition-colors"
                 >
                   <span>{t('contactBtn')}</span>
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                </a>
+                </Link>
               </div>
             </nav>
           </div>

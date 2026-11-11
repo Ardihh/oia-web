@@ -118,16 +118,19 @@ export function validateSiteContent(data: any): ValidationResult {
       ? data.admissionSteps
       : defaultSiteContent.admissionSteps,
     stats: {
-      ...defaultSiteContent.stats,
-      items: Array.isArray(data.stats?.items) ? data.stats.items : defaultSiteContent.stats.items,
+      ...(defaultSiteContent?.stats || {}),
+      ...(data.stats || {}),
+      items: Array.isArray(data.stats?.items) ? data.stats.items : (defaultSiteContent?.stats?.items || []),
     },
     services: {
-      ...defaultSiteContent.services,
-      items: Array.isArray(data.services?.items) ? data.services.items : defaultSiteContent.services.items,
+      ...(defaultSiteContent?.services || {}),
+      ...(data.services || {}),
+      items: Array.isArray(data.services?.items) ? data.services.items : (defaultSiteContent?.services?.items || []),
     },
     faq: {
-      ...defaultSiteContent.faq,
-      items: Array.isArray(data.faq?.items) ? data.faq.items : defaultSiteContent.faq.items,
+      ...(defaultSiteContent?.faq || {}),
+      ...(data.faq || {}),
+      items: Array.isArray(data.faq?.items) ? data.faq.items : (defaultSiteContent?.faq?.items || []),
     },
     contact: {
       ...defaultSiteContent.contact,

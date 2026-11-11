@@ -25,8 +25,8 @@ export function Faq({ locale }: FaqProps) {
   const faqItems =
     Array.isArray(content.faq?.items) && content.faq.items.length > 0
       ? content.faq.items.map((item) => ({
-          q: item.q[lang] || item.q.id,
-          a: item.a[lang] || item.a.id,
+          q: item.q?.[lang] || item.q?.id || '',
+          a: item.a?.[lang] || item.a?.id || '',
         }))
       : [
           { q: t('items.0.q'), a: t('items.0.a') },

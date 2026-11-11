@@ -25,7 +25,7 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, **next
 
 Website ini dilengkapi dengan **Portal Admin CMS visual modern** di rute `/admin` (atau `/[locale]/admin`):
 
-- **URL Akses**: `https://io.unram.ac.id/admin` (atau `/admin` di localhost).
+- **URL Akses**: `https://oia.unram.ac.id/admin` (atau `/admin` di localhost).
 - **Otentikasi**: Supabase Authentication (Email & Password), diverifikasi dengan fungsi database `is_admin()` dan tabel `admin_users`.
 - **Panduan Setup Supabase**: Lihat petunjuk langkah demi langkah di [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
@@ -241,7 +241,7 @@ Upload the contents of `out/` to `/var/www/unram-io` and add this server block t
 server {
     listen 80;
     listen 443 ssl http2;
-    server_name io.unram.ac.id;
+    server_name oia.unram.ac.id;
 
     root /var/www/unram-io;
     index index.html;

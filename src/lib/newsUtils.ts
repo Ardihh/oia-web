@@ -1,3 +1,5 @@
+import sanitizeHtmlLib from 'sanitize-html';
+
 /**
  * Utility functions for News Articles CMS & Public Site
  */
@@ -115,6 +117,54 @@ export function slugify(text: string): string {
 }
 
 /**
+ * Robust slug getter for news articles supporting string, localized object, or fallback title
+ */
+export function getArticleSlug(article: {
+  slug?: string | { id?: string; en?: string };
+  title?: { id?: string; en?: string };
+  id?: string;
+}): string {
+  if (typeof article.slug === 'string' && article.slug.trim()) {
+    return slugify(article.slug);
+  }
+  if (typeof article.slug === 'object' && article.slug) {
+    const s = article.slug.en || article.slug.id;
+    if (s?.trim()) return slugify(s);
+  }
+  const title = article.title?.en || article.title?.id || '';
+  if (title.trim()) return slugify(title);
+  return article.id || 'article';
+}
+
+/**
+ * Strict server & client HTML sanitizer using sanitize-html
+ */
+export function sanitizeArticleHtml(html: string): string {
+  if (!html) return '';
+  return sanitizeHtmlLib(html, {
+    allowedTags: [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'b', 'i', 'strong', 'em', 'strike',
+      'code', 'hr', 'br', 'ul', 'ol', 'li', 'blockquote', 'figure', 'figcaption',
+      'img', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'span', 'div'
+    ],
+    allowedAttributes: {
+      a: ['href', 'name', 'target', 'rel', 'title', 'class'],
+      img: ['src', 'alt', 'title', 'width', 'height', 'loading', 'class'],
+      span: ['class'],
+      div: ['class'],
+      th: ['colspan', 'rowspan', 'scope', 'class'],
+      td: ['colspan', 'rowspan', 'class'],
+      p: ['class'],
+      blockquote: ['class'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    transformTags: {
+      a: sanitizeHtmlLib.simpleTransform('a', { rel: 'noopener noreferrer' }),
+    },
+  });
+}
+
+/**
  * Check if a string contains HTML tags
  */
 export function isHtmlContent(content: string): boolean {
@@ -151,17 +201,10 @@ export function plainTextToHtml(text: string): string {
 }
 
 /**
- * Basic client-side HTML sanitizer to prevent malicious script injection
+ * HTML sanitizer using sanitize-html
  */
 export function sanitizeHtml(html: string): string {
-  if (!html) return '';
-  // Remove script tags, onload attributes, javascript: URLs
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/on\w+="[^"]*"/gi, '')
-    .replace(/on\w+='[^']*'/gi, '')
-    .replace(/javascript:[^"']*/gi, '');
+  return sanitizeArticleHtml(html);
 }
 
 /**

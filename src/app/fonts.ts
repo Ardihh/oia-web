@@ -10,7 +10,7 @@ export const newsreader = Newsreader({
 
 export const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  style: ['normal', 'italic'],
+  style: ['normal'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-instrument-sans',
   display: 'swap',

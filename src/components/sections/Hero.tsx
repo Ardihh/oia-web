@@ -2,10 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { useSiteContent } from '@/context/ContentContext';
+import { sectionHref } from '@/lib/routes';
 
 interface HeroProps {
   locale: string;
@@ -23,15 +25,6 @@ export function Hero({ locale }: HeroProps) {
   const ctaStudy = content.hero.ctaStudy[lang] || t('ctaStudy');
   const ctaPartner = content.hero.ctaPartner[lang] || t('ctaPartner');
   const bgImage = content.hero.bgImage || '/images/hero-campus.jpg';
-
-  const handleHeroNav = (e: React.MouseEvent<HTMLAnchorElement>, targetKey: string) => {
-    if (typeof window !== 'undefined') {
-      e.preventDefault();
-      window.dispatchEvent(
-        new CustomEvent('unram_navigate_section', { detail: targetKey })
-      );
-    }
-  };
 
   return (
     <section
@@ -83,22 +76,20 @@ export function Hero({ locale }: HeroProps) {
               transition={{ duration: 0.45, delay: 0.15 }}
               className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5"
             >
-              <a
-                href="#admission"
-                onClick={(e) => handleHeroNav(e, 'admission')}
+              <Link
+                href={sectionHref(locale, 'admission')}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-[6px] bg-accent hover:bg-accent-hover text-white font-semibold text-sm transition-colors"
               >
                 <span>{ctaStudy}</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
-              </a>
+              </Link>
 
-              <a
-                href="#contact"
-                onClick={(e) => handleHeroNav(e, 'contact')}
+              <Link
+                href={sectionHref(locale, 'contact')}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-[6px] border border-unram-600 text-unram-600 hover:bg-unram-50 bg-transparent font-semibold text-sm transition-colors"
               >
                 <span>{ctaPartner}</span>
-              </a>
+              </Link>
             </motion.div>
           </div>
 

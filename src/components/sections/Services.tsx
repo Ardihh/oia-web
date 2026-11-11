@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { useSiteContent } from '@/context/ContentContext';
+import { resolveInternalHref } from '@/lib/routes';
 
 interface ServicesProps {
   locale: string;
@@ -16,25 +17,29 @@ export function Services({ locale }: ServicesProps) {
   const { content } = useSiteContent();
   const lang = locale === 'en' ? 'en' : 'id';
 
-  const servicesList = Array.isArray(content.services?.items) ? content.services.items : [];
+  const servicesConfig = content?.services;
+  const kicker = servicesConfig?.kicker?.[lang] || t('kicker');
+  const title = servicesConfig?.title?.[lang] || t('title');
+  const subtitle = servicesConfig?.subtitle?.[lang] || t('subtitle');
+  const servicesList = Array.isArray(servicesConfig?.items) ? servicesConfig.items : [];
 
   return (
     <section id="services" className="py-20 lg:py-28 bg-paper border-b border-hairline">
       <Container>
         {/* Numbered Section Heading (DESIGN.md) */}
         <SectionHeading
-          kicker={`03 — ${content.services.kicker[lang] || t('kicker')}`}
-          title={content.services.title[lang] || t('title')}
-          subtitle={content.services.subtitle[lang] || t('subtitle')}
+          kicker={`03 — ${kicker}`}
+          title={title}
+          subtitle={subtitle}
           className="mb-14 lg:mb-16"
         />
 
         {/* Vertical List of Rows separated by Hairlines (DESIGN.md Section 7) */}
         <div className="border-y border-hairline divide-y divide-hairline">
           {servicesList.slice(0, 6).map((service, index) => {
-            const title = service.title[lang] || service.title.id;
-            const desc = service.desc[lang] || service.desc.id;
-            const href = service.href || '#contact';
+            const itemTitle = service.title?.[lang] || service.title?.id || '';
+            const desc = service.desc?.[lang] || service.desc?.id || '';
+            const href = resolveInternalHref(service.href || '#contact', locale);
             const numStr = String(index + 1).padStart(2, '0');
 
             return (
@@ -54,7 +59,7 @@ export function Services({ locale }: ServicesProps) {
                   </span>
                   <div className="flex-1 space-y-1.5 md:space-y-0 md:grid md:grid-cols-12 md:gap-6 md:items-baseline">
                     <h3 className="font-serif text-xl sm:text-2xl font-normal text-ink group-hover:text-unram-600 transition-colors md:col-span-5">
-                      {title}
+                      {itemTitle}
                     </h3>
                     <p className="text-sm sm:text-base text-ink-soft leading-normal md:col-span-7">
                       {desc}

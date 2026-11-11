@@ -29,6 +29,7 @@ import {
   translateText,
   translateHtml,
   slugify,
+  getArticleSlug,
   calcReadingTime,
   getTodayFormatted,
   plainTextToHtml,
@@ -61,7 +62,9 @@ export function ArticleEditor({
       return {
         ...initialArticle,
         status: initialArticle.status || 'published',
-        slug: initialArticle.slug || slugify(initialArticle.title?.id || initialArticle.title?.en || ''),
+        slug: typeof initialArticle.slug === 'string' && initialArticle.slug.trim()
+          ? initialArticle.slug
+          : getArticleSlug(initialArticle),
         content: {
           id: plainTextToHtml(initialArticle.content?.id || ''),
           en: plainTextToHtml(initialArticle.content?.en || ''),
@@ -80,7 +83,7 @@ export function ArticleEditor({
       image: '/images/news-1.jpg',
       author: 'Tim Redaksi KUI UNRAM',
       status: 'draft',
-      slug: { id: '', en: '' },
+      slug: '',
       imageCaption: { id: '', en: '' },
       imageCredit: 'Dokumentasi KUI UNRAM',
     };
@@ -885,9 +888,11 @@ export function ArticleEditor({
                 type="text"
                 placeholder="slug-judul-berita"
                 value={
-                  typeof article.slug === 'object'
-                    ? article.slug.id
-                    : (article.slug as string) || ''
+                  typeof article.slug === 'string'
+                    ? article.slug
+                    : typeof article.slug === 'object' && article.slug
+                    ? (article.slug as any).id || (article.slug as any).en || ''
+                    : ''
                 }
                 onChange={(e) => updateArticle({ slug: slugify(e.target.value) })}
                 className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 bg-white text-slate-600"

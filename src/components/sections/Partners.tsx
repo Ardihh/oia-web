@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { useSiteContent, defaultPartners } from '@/context/ContentContext';
+import { resolveInternalHref } from '@/lib/routes';
 
 interface PartnersProps {
   locale: string;
@@ -34,7 +35,7 @@ export function Partners({ locale }: PartnersProps) {
   const becomeTitle = partnersData.becomePartnerTitle?.[lang] || t('becomePartnerTitle');
   const becomeDesc = partnersData.becomePartnerDesc?.[lang] || t('becomePartnerDesc');
   const becomeBtn = partnersData.becomePartnerBtn?.[lang] || t('becomePartnerBtn');
-  const becomeUrl = partnersData.becomePartnerUrl || '#contact';
+  const becomeUrl = resolveInternalHref(partnersData.becomePartnerUrl || '#contact', locale);
 
   return (
     <section id="partners" className="py-20 lg:py-28 bg-paper border-b border-hairline">

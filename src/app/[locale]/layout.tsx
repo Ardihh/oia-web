@@ -7,6 +7,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { ContentProvider } from '@/context/ContentContext';
 import { newsreader, instrumentSans } from '@/app/fonts';
+import { getSiteUrl } from '@/lib/siteUrl';
+import { getServerSiteContent } from '@/lib/serverContent';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -19,15 +21,27 @@ export async function generateMetadata({
 }) {
   const { locale } = await params;
   const isEn = locale === 'en';
+  const siteUrl = getSiteUrl();
 
-  const title = isEn
+  const { content } = await getServerSiteContent();
+
+  const titlePrefix = content?.hero?.titlePrefix?.[isEn ? 'en' : 'id'];
+  const titleHighlight = content?.hero?.titleHighlight?.[isEn ? 'en' : 'id'];
+  const customHeroTitle =
+    titlePrefix && titleHighlight ? `${titlePrefix} ${titleHighlight}` : undefined;
+
+  const defaultTitle = isEn
     ? 'Office of International Affairs - Universitas Mataram (UNRAM)'
     : 'Kantor Urusan Internasional - Universitas Mataram (UNRAM)';
-  const description = isEn
-    ? 'Official portal for international admissions, global academic partnerships, student mobility (IISMA), scholarships, and visitor services at Universitas Mataram, Lombok, Indonesia.'
-    : 'Portal resmi penerimaan mahasiswa internasional, kemitraan akademik global, mobilitas mahasiswa (IISMA), beasiswa, dan layanan izin tinggal di Universitas Mataram, Lombok, Indonesia.';
+  const title = customHeroTitle ? `${customHeroTitle} - UNRAM` : defaultTitle;
 
-  const baseUrl = 'https://io.unram.ac.id';
+  const description =
+    content?.hero?.subtitle?.[isEn ? 'en' : 'id'] ||
+    (isEn
+      ? 'Official portal for international admissions, global academic partnerships, student mobility (IISMA), scholarships, and visitor services at Universitas Mataram, Lombok, Indonesia.'
+      : 'Portal resmi penerimaan mahasiswa internasional, kemitraan akademik global, mobilitas mahasiswa (IISMA), beasiswa, dan layanan izin tinggal di Universitas Mataram, Lombok, Indonesia.');
+
+  const heroImage = content?.hero?.bgImage || '/images/hero-campus.jpg';
 
   return {
     title: {
@@ -47,7 +61,7 @@ export async function generateMetadata({
       'Student Mobility Indonesia',
       'Lombok University',
     ],
-    metadataBase: new URL(baseUrl),
+    metadataBase: new URL(siteUrl),
     alternates: {
       canonical: `/${locale}/`,
       languages: {
@@ -65,7 +79,7 @@ export async function generateMetadata({
       type: 'website',
       images: [
         {
-          url: '/images/hero-campus.jpg',
+          url: heroImage,
           width: 1200,
           height: 630,
           alt: title,
@@ -76,7 +90,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: ['/images/hero-campus.jpg'],
+      images: [heroImage],
     },
     icons: {
       icon: '/favicon.ico',
@@ -105,12 +119,18 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
   const messages = await getMessages();
+  const { content: initialContent, publishedAt: initialPublishedAt } =
+    await getServerSiteContent();
 
   return (
     <html lang={locale} className={`scroll-smooth ${newsreader.variable} ${instrumentSans.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://dscmuuilmrkwtuxmmyap.supabase.co" />
+        <link rel="dns-prefetch" href="https://dscmuuilmrkwtuxmmyap.supabase.co" />
+      </head>
       <body className="min-h-screen flex flex-col font-sans bg-paper text-ink antialiased selection:bg-unram-600 selection:text-white">
         <NextIntlClientProvider messages={messages}>
-          <ContentProvider>
+          <ContentProvider initialContent={initialContent} initialPublishedAt={initialPublishedAt}>
             {/* Accessibility: Skip to Content */}
             <a
               href="#main-content"

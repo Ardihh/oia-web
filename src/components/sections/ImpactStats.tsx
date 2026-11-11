@@ -16,7 +16,11 @@ export function ImpactStats({ locale }: ImpactStatsProps) {
   const { content } = useSiteContent();
   const lang = locale === 'en' ? 'en' : 'id';
 
-  const statItems = Array.isArray(content.stats?.items) ? content.stats.items : [];
+  const statsConfig = content?.stats;
+  const kicker = statsConfig?.kicker?.[lang] || t('kicker');
+  const title = statsConfig?.title?.[lang] || t('title');
+  const subtitle = statsConfig?.subtitle?.[lang] || t('subtitle');
+  const statItems = Array.isArray(statsConfig?.items) ? statsConfig.items : [];
 
   return (
     <section
@@ -27,9 +31,9 @@ export function ImpactStats({ locale }: ImpactStatsProps) {
       <Container>
         {/* Section Heading (Light on Dark per DESIGN.md) */}
         <SectionHeading
-          kicker={`04 — ${content.stats.kicker[lang] || t('kicker')}`}
-          title={content.stats.title[lang] || t('title')}
-          subtitle={content.stats.subtitle[lang] || t('subtitle')}
+          kicker={`04 — ${kicker}`}
+          title={title}
+          subtitle={subtitle}
           light
           className="mb-14 lg:mb-16"
         />
@@ -37,8 +41,8 @@ export function ImpactStats({ locale }: ImpactStatsProps) {
         {/* Four Columns Separated by Vertical Hairlines, No Icons, No Cards (DESIGN.md) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-b border-unram-800/80 divide-y sm:divide-y-0 sm:divide-x divide-unram-800/80">
           {statItems.map((stat, index) => {
-            const label = stat.label[lang] || stat.label.id;
-            const desc = stat.desc[lang] || stat.desc.id;
+            const label = stat.label?.[lang] || stat.label?.id || '';
+            const desc = stat.desc?.[lang] || stat.desc?.id || '';
 
             return (
               <motion.div

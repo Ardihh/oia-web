@@ -168,7 +168,7 @@ export const defaultGuides: GuideItem[] = [
       id: 'Panduan komprehensif tentang kurikulum, biaya kuliah, registrasi akademik, dan orientasi kehidupan kampus di Lombok.',
       en: 'Comprehensive guide covering academic curriculum, tuition structure, registration, and student life in Lombok.',
     },
-    fileUrl: 'https://io.unram.ac.id/documents/international-student-handbook.pdf',
+    fileUrl: '',
     fileSize: 'PDF • 4.2 MB',
     updatedAt: '10 Nov 2026',
   },
@@ -186,7 +186,7 @@ export const defaultGuides: GuideItem[] = [
       id: 'Persyaratan berkas, format proposal esai, konversi SKS mata kuliah luar negeri, dan jadwal seleksi wawancara tingkat universitas.',
       en: 'Eligibility criteria, essay structures, credit transfer policies, and institutional interview timelines.',
     },
-    fileUrl: 'https://io.unram.ac.id/documents/unram-outbound-mobility-guide.pdf',
+    fileUrl: '',
     fileSize: 'PDF • 2.8 MB',
     updatedAt: '05 Nov 2026',
   },
@@ -204,7 +204,7 @@ export const defaultGuides: GuideItem[] = [
       id: 'Alur permohonan izin belajar Kemendikbudristek, dokumen telex visa imigrasi, dan pelaporan berkala bagi mahasiswa & peneliti asing.',
       en: 'Step-by-step instructions for Ministry study permits, immigration clearance, and local police reporting for visiting scholars.',
     },
-    fileUrl: 'https://io.unram.ac.id/documents/study-permit-itas-guidelines.pdf',
+    fileUrl: '',
     fileSize: 'PDF • 1.9 MB',
     updatedAt: '28 Okt 2026',
   },
@@ -656,68 +656,17 @@ export function isSiteContentValid(data: any): boolean {
 
 const INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 60 minutes
 
-export function ContentProvider({ children }: { children: ReactNode }) {
-  const [content, setContent] = useState<SiteContent>(defaultSiteContent);
+export function ContentProvider({
+  children,
+  initialContent,
+  initialPublishedAt,
+}: {
+  children: ReactNode;
+  initialContent?: SiteContent;
+  initialPublishedAt?: string;
+}) {
+  const [content, setContent] = useState<SiteContent>(initialContent || defaultSiteContent);
   const [isAdminPreview, setIsAdminPreview] = useState(false);
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
-  const [isDraftDiffers, setIsDraftDiffers] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem('unram_hide_preview_banner') === 'true') {
-        setIsBannerDismissed(true);
-      }
-    } catch {}
-  }, []);
-
-  const handleDismissBanner = () => {
-    setIsBannerDismissed(true);
-    try {
-      sessionStorage.setItem('unram_hide_preview_banner', 'true');
-    } catch {}
-  };
-
-  const handleExitAdminPreview = async () => {
-    try {
-      const supabase = getSupabase();
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
-      sessionStorage.removeItem('unram_admin_auth');
-      localStorage.removeItem('unram_admin_auth');
-      sessionStorage.removeItem('unram_hide_preview_banner');
-      setIsAdminPreview(false);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('unram_content_changed'));
-        window.location.reload();
-      }
-    } catch {
-      window.location.reload();
-    }
-  };
-
-  const handleQuickPublish = async () => {
-    if (isPublishing) return;
-    setIsPublishing(true);
-    setPublishSuccessMsg(null);
-    try {
-      const res = await publish('Dipublikasikan dari banner pratinjau');
-      if (res.success) {
-        setIsDraftDiffers(false);
-        setPublishSuccessMsg('Terpublikasi live!');
-        setTimeout(() => setPublishSuccessMsg(null), 3500);
-        window.dispatchEvent(new Event('unram_content_changed'));
-      } else {
-        alert(`Gagal mempublikasikan: ${res.error}`);
-      }
-    } catch (e: any) {
-      alert(`Gagal mempublikasikan: ${e?.message || 'Error'}`);
-    } finally {
-      setIsPublishing(false);
-    }
-  };
 
   useEffect(() => {
     // 60-Minute Inactivity Auto Sign-Out tracker
@@ -760,15 +709,6 @@ export function ContentProvider({ children }: { children: ReactNode }) {
             const draftData = await getDraft();
             if (draftData && draftData.content) {
               setContent(draftData.content);
-
-              // Check if draft differs from published
-              const published = await getPublishedContent();
-              if (published) {
-                const differs = JSON.stringify(draftData.content) !== JSON.stringify(published);
-                setIsDraftDiffers(differs);
-              } else {
-                setIsDraftDiffers(true); // No published version yet
-              }
               return;
             }
           } catch (e) {
@@ -779,6 +719,27 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
       // Public visitor mode (or view=public)
       setIsAdminPreview(false);
+
+      // Fast check: If initialContent was provided from build time and published_at is unchanged,
+      // skip downloading full published content to save data and speed up load
+      if (initialContent && initialPublishedAt) {
+        try {
+          const supabase = getSupabase();
+          if (supabase) {
+            const { data } = await supabase
+              .from('site_content_published')
+              .select('published_at')
+              .eq('id', 'main')
+              .maybeSingle();
+
+            if (data?.published_at && data.published_at === initialPublishedAt) {
+              return; // Content is fresh, no re-download needed
+            }
+          }
+        } catch {
+          // Continue to normal fallback flow
+        }
+      }
 
       // 1. Primary: Read from Supabase site_content_published
       try {
@@ -844,76 +805,6 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   return (
     <ContentContext.Provider value={{ content, updateContent, resetContent, isAdminPreview, mediaUrl }}>
-      {isAdminPreview && !isBannerDismissed && (
-        <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-medium flex flex-wrap items-center justify-between sticky top-0 z-[60] border-b border-slate-800 shadow-lg animate-in fade-in duration-150 gap-2">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
-              Mode Admin Aktif
-            </span>
-            <span className="text-slate-300 truncate">
-              {isDraftDiffers ? (
-                <span className="text-amber-300 font-medium">
-                  Draf server memiliki perubahan yang belum dipublikasikan ke publik.
-                </span>
-              ) : (
-                <span className="text-emerald-400">
-                  Draf kerja identik dengan versi publik yang aktif.
-                </span>
-              )}
-            </span>
-            {publishSuccessMsg && (
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] animate-in fade-in">
-                ✓ {publishSuccessMsg}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isDraftDiffers && (
-              <button
-                type="button"
-                onClick={handleQuickPublish}
-                disabled={isPublishing}
-                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
-              >
-                {isPublishing ? 'Mempublikasikan...' : 'Publikasikan Sekarang'}
-              </button>
-            )}
-            <a
-              href="?view=public"
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition-colors hidden sm:inline"
-              title="Lihat persis seperti yang dilihat pengunjung biasa"
-            >
-              Lihat Publik
-            </a>
-            <a
-              href="/admin"
-              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
-            >
-              Buka CMS
-            </a>
-            <button
-              type="button"
-              onClick={handleExitAdminPreview}
-              className="px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold transition-colors"
-              title="Keluar dari sesi admin"
-            >
-              Keluar Sesi
-            </button>
-            <button
-              type="button"
-              onClick={handleDismissBanner}
-              className="p-1 text-slate-400 hover:text-white rounded-md transition-colors"
-              title="Sembunyikan banner ini"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
       {children}
     </ContentContext.Provider>
   );

@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowUp, ExternalLink } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { useSiteContent } from '@/context/ContentContext';
+import { SECTIONS, sectionHref } from '@/lib/routes';
 
 interface FooterProps {
   locale: string;
@@ -52,16 +54,11 @@ export function Footer({ locale }: FooterProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navLinks = [
-    { href: '#about', label: tNav('links.about') },
-    { href: '#services', label: tNav('links.services') },
-    { href: '#stats', label: tNav('links.stats') },
-    { href: '#partners', label: tNav('links.partners') },
-    { href: '#news', label: tNav('links.news') },
-    { href: '#admission', label: tNav('links.admission') },
-    { href: '#faq', label: tNav('links.faq') },
-    { href: '#contact', label: tNav('links.contact') },
-  ];
+  const navLinks = SECTIONS.map((sec) => ({
+    key: sec.key,
+    href: sectionHref(locale, sec.key),
+    label: tNav(`links.${sec.navKey}`),
+  }));
 
   const externalLinks = [
     { href: 'https://unram.ac.id', label: t('unramMainSite') },
@@ -108,13 +105,13 @@ export function Footer({ locale }: FooterProps) {
             </h4>
             <ul className="space-y-2 text-xs">
               {navLinks.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={isHomePage ? link.href : `/${locale}/${link.href}`}
+                <li key={link.key}>
+                  <Link
+                    href={link.href}
                     className="text-blue-300/80 hover:text-paper hover:underline underline-offset-4 transition-colors"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
