@@ -67,8 +67,8 @@ export function Admission({ locale }: AdmissionProps) {
                 transition={{ duration: 0.35, delay: index * 0.05 }}
                 className="flex flex-col text-left space-y-3"
               >
-                {/* Number Circle (DESIGN.md: 4px radius or round, hairline border) */}
-                <div className="w-12 h-12 rounded-full border border-hairline bg-surface flex items-center justify-center font-serif text-lg font-normal text-unram-600 tabular-nums shadow-subtle">
+                {/* Step Number Box (DESIGN.md: 4px radius, hairline border, no shadow) */}
+                <div className="w-12 h-12 rounded-[4px] border border-hairline bg-surface flex items-center justify-center font-serif text-lg font-normal text-unram-600 tabular-nums">
                   {step.num}
                 </div>
 
@@ -119,10 +119,10 @@ export function Admission({ locale }: AdmissionProps) {
                 >
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-unram-600">
+                      <span className="text-xs font-medium uppercase tracking-[0.12em] text-unram-600">
                         {guideCategory || 'Dokumen'}
                       </span>
-                      <span className="text-[11px] font-mono text-ink-soft px-2 py-0.5 rounded-[4px] bg-unram-50 border border-hairline">
+                      <span className="text-xs font-mono text-ink-soft px-2 py-0.5 rounded-[4px] bg-unram-50 border border-hairline">
                         {guide.fileSize || 'PDF'}
                       </span>
                     </div>
@@ -137,7 +137,7 @@ export function Admission({ locale }: AdmissionProps) {
                   </div>
 
                   <div className="pt-6 mt-4 border-t border-hairline flex items-center justify-between">
-                    <span className="text-[11px] text-ink-soft font-normal">
+                    <span className="text-xs text-ink-soft font-normal">
                       {guide.updatedAt ? `Update: ${guide.updatedAt}` : 'Terbaru 2026'}
                     </span>
 

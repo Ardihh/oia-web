@@ -13,7 +13,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { NewsArticle } from '@/context/ContentContext';
-import { sanitizeHtml } from '@/lib/newsUtils';
+import { sanitizeRichHtml } from '@/lib/domPurify';
 
 interface ArticlePreviewModalProps {
   article: NewsArticle;
@@ -107,7 +107,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
       {/* Top Preview Controls Bar */}
       <div className="h-14 px-4 bg-unram-950 text-white border-b border-unram-800 flex items-center justify-between gap-4 flex-shrink-0 z-20">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 flex-shrink-0">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 flex-shrink-0">
             Pratinjau Halaman Pembaca
           </span>
           <span className="text-white/30 hidden sm:inline">&bull;</span>
@@ -151,7 +151,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
               title="Tampilan Desktop / Layar Penuh"
             >
               <Monitor className="w-3.5 h-3.5" />
-              <span className="hidden md:inline text-[11px]">Desktop</span>
+              <span className="hidden md:inline text-xs">Desktop</span>
             </button>
             <button
               type="button"
@@ -162,7 +162,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
               title="Tampilan Layar Ponsel (375px)"
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden md:inline text-[11px]">Ponsel (375px)</span>
+              <span className="hidden md:inline text-xs">Ponsel (375px)</span>
             </button>
           </div>
         </div>
@@ -178,8 +178,8 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
         </button>
       </div>
 
-      {/* Preview Scrollable Canvas */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 lg:p-8 flex justify-center items-start bg-slate-900/60">
+      {/* Preview Scrollable Canvas with overscroll containment */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 lg:p-8 flex justify-center items-start bg-slate-900/60">
         <div
           className={`bg-paper rounded-lg shadow-2xl transition-all duration-300 flex flex-col border border-hairline/60 my-2 mb-16 ${
             deviceMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-4xl'
@@ -192,7 +192,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" />
             </div>
-            <div className="flex-1 bg-white px-3 py-1 rounded border border-hairline text-[11px] font-mono text-slate-600 truncate flex items-center gap-2">
+            <div className="flex-1 bg-white px-3 py-1 rounded border border-hairline text-xs font-mono text-slate-600 truncate flex items-center gap-2">
               <Globe className="w-3 h-3 text-slate-400 flex-shrink-0" />
               <span className="truncate">https://unram.ac.id/{previewLang}/news?id={article.id || 'preview'}</span>
             </div>
@@ -262,7 +262,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
                 <p className="text-xs text-ink-soft font-normal tracking-wide flex flex-wrap items-center justify-between gap-2 pt-1">
                   <span>{caption || title}</span>
                   {article.imageCredit && (
-                    <span className="text-slate-400 text-[11px]">
+                    <span className="text-slate-400 text-xs">
                       Foto: {article.imageCredit}
                     </span>
                   )}
@@ -281,7 +281,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
             {isHtml ? (
               <div
                 className="article-prose prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal font-sans"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(content) }}
               />
             ) : (
               <div className="space-y-6 text-base sm:text-lg text-ink/90 leading-[1.75]">

@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /en/admin/
+Disallow: /id/admin/
+Disallow: /content/
 
 Sitemap: https://io.unram.ac.id/sitemap.xml

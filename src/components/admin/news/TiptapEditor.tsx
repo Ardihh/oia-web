@@ -24,6 +24,8 @@ import {
   Trash2,
   Check,
 } from 'lucide-react';
+import { compressImage } from '@/lib/imageCompression';
+import { saveBlobToDb } from '@/lib/db';
 
 interface TiptapEditorProps {
   content: string;
@@ -138,17 +140,26 @@ export function TiptapEditor({
     setShowImageModal(true);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressError, setCompressError] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setImageUrl(result);
-      setImagePreview(result);
-    };
-    reader.readAsDataURL(file);
+    setIsCompressing(true);
+    setCompressError(null);
+
+    try {
+      const result = await compressImage(file);
+      await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
+      setImageUrl(result.path);
+      setImagePreview(result.dataUrl);
+    } catch (err: any) {
+      setCompressError(err.message || 'Gagal memproses gambar');
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const handleInsertImage = (e?: React.FormEvent) => {

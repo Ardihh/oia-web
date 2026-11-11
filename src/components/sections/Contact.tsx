@@ -48,6 +48,13 @@ export function Contact({ locale }: ContactProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
+  const web3formsKey = process.env.NEXT_PUBLIC_WEB3FORMS_KEY;
+  const isWeb3FormsConfigured = Boolean(
+    web3formsKey &&
+    web3formsKey.trim() !== '' &&
+    web3formsKey !== 'TODO_REPLACE_WITH_REAL_WEB3FORMS_KEY'
+  );
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -56,13 +63,20 @@ export function Contact({ locale }: ContactProps) {
       return;
     }
 
+    if (!isWeb3FormsConfigured) {
+      console.warn('Web3Forms key is not configured. Redirecting to mailto fallback.');
+      const subjectEncoded = encodeURIComponent(`[IAO UNRAM Inquiry] ${formData.subject}: ${formData.name}`);
+      const bodyEncoded = encodeURIComponent(
+        `Name: ${formData.name}\nEmail: ${formData.email}\nTopic: ${formData.subject}\n\nMessage:\n${formData.message}`
+      );
+      window.location.href = `mailto:io@unram.ac.id?subject=${subjectEncoded}&body=${bodyEncoded}`;
+      return;
+    }
+
     setStatus('loading');
     setErrorMessage('');
 
     try {
-      const apiKey =
-        process.env.NEXT_PUBLIC_WEB3FORMS_KEY || 'TODO_REPLACE_WITH_REAL_WEB3FORMS_KEY';
-
       const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
@@ -70,7 +84,7 @@ export function Contact({ locale }: ContactProps) {
           Accept: 'application/json',
         },
         body: JSON.stringify({
-          access_key: apiKey,
+          access_key: web3formsKey,
           name: formData.name,
           email: formData.email,
           subject: `[IAO UNRAM Inquiry] ${formData.subject}: ${formData.name}`,
@@ -394,6 +408,23 @@ export function Contact({ locale }: ContactProps) {
                   />
                 </div>
 
+                {/* Notice for mailto fallback if Web3Forms key not configured */}
+                {!isWeb3FormsConfigured && (
+                  <div className="p-3.5 rounded-[4px] border border-amber-200 bg-amber-50/70 text-xs text-amber-900 flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">
+                        {locale === 'en' ? 'Direct Email Delivery Active' : 'Pengiriman Email Langsung Aktif'}
+                      </p>
+                      <p className="text-amber-800 mt-0.5 leading-relaxed">
+                        {locale === 'en'
+                          ? 'Inquiries will be composed directly to io@unram.ac.id.'
+                          : 'Pesan akan diarahkan langsung melalui email resmi io@unram.ac.id.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Submit CTA Button (DESIGN.md: Primary --accent fill, --ink text, 6px radius, weight 600) */}
                 <button
                   type="submit"
@@ -407,7 +438,11 @@ export function Contact({ locale }: ContactProps) {
                     </>
                   ) : (
                     <>
-                      <span>{tForm('submitBtn')}</span>
+                      <span>
+                        {!isWeb3FormsConfigured
+                          ? (locale === 'en' ? 'Send via Email (mailto)' : 'Kirim via Email')
+                          : tForm('submitBtn')}
+                      </span>
                       <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                     </>
                   )}

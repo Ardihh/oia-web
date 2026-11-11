@@ -19,45 +19,9 @@ export function News({ locale }: NewsProps) {
   const lang = isEn ? 'en' : 'id';
   const { content } = useSiteContent();
 
-  const [articles, setArticles] = useState<NewsArticle[]>(
-    Array.isArray(content?.news) ? content.news : defaultNews
-  );
-
-  const syncArticles = () => {
-    // 1. Check content.news from Context
-    if (Array.isArray(content?.news)) {
-      setArticles(content.news);
-      return;
-    }
-    // 2. Check localStorage unram_custom_news directly
-    try {
-      const custom = localStorage.getItem('unram_custom_news');
-      if (custom !== null) {
-        const parsed = JSON.parse(custom);
-        if (Array.isArray(parsed)) {
-          setArticles(parsed);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    setArticles(defaultNews);
-  };
-
-  useEffect(() => {
-    syncArticles();
-  }, [content?.news]);
-
-  useEffect(() => {
-    const handleUpdate = () => syncArticles();
-    window.addEventListener('unram_content_changed', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
-    return () => {
-      window.removeEventListener('unram_content_changed', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
-    };
-  }, []);
+  const articles: NewsArticle[] = Array.isArray(content?.news) && content.news.length > 0
+    ? content.news
+    : defaultNews;
 
   return (
     <section id="news" className="py-20 lg:py-28 bg-unram-50 border-b border-hairline">

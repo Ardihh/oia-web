@@ -1,6 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getDraftFromDb, saveDraftToDb } from '@/lib/db';
+import { validateSiteContent, CURRENT_SCHEMA_VERSION } from '@/lib/schemaValidator';
 
 export interface StatItem {
   id: string;
@@ -46,6 +48,11 @@ export interface NewsArticle {
   slug?: { id: string; en: string } | string;
   imageCaption?: { id: string; en: string } | string;
   imageCredit?: string;
+  translationMeta?: {
+    idStatus?: 'auto' | 'reviewed';
+    enStatus?: 'auto' | 'reviewed';
+    lastTranslated?: string;
+  };
 }
 
 export interface AdmissionStepItem {
@@ -55,6 +62,8 @@ export interface AdmissionStepItem {
 }
 
 export interface SiteContent {
+  schemaVersion?: number;
+  updatedAt?: string;
   hero: {
     badge: { id: string; en: string };
     titlePrefix: { id: string; en: string };
@@ -233,6 +242,8 @@ export const defaultNews: NewsArticle[] = [
 ];
 
 export const defaultSiteContent: SiteContent = {
+  schemaVersion: CURRENT_SCHEMA_VERSION,
+  updatedAt: '2026-11-10T00:00:00.000Z',
   hero: {
     badge: {
       id: 'Pintu Gerbang Internasionalisasi UNRAM',
@@ -554,129 +565,126 @@ interface ContentContextType {
   content: SiteContent;
   updateContent: (newContent: SiteContent) => void;
   resetContent: () => void;
+  isAdminPreview: boolean;
 }
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
 
 export function isSiteContentValid(data: any): boolean {
-  if (!data || typeof data !== 'object') return false;
-  if (!Array.isArray(data.stats?.items)) return false;
-  if (!Array.isArray(data.services?.items)) return false;
-  if (!Array.isArray(data.faq?.items)) return false;
-  if (!Array.isArray(data.about?.missionItems?.id)) return false;
-  if (!Array.isArray(data.about?.missionItems?.en)) return false;
-  return true;
+  return validateSiteContent(data).valid;
 }
-
-const STORAGE_KEY = 'unram_site_content_v4';
 
 export function ContentProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<SiteContent>(defaultSiteContent);
+  const [isAdminPreview, setIsAdminPreview] = useState(false);
 
   useEffect(() => {
-    // Helper to load & merge saved content from localStorage
-    const loadFromStorage = (): SiteContent | null => {
+    // 1. Check if admin is currently authenticated in this browser session
+    const checkAdminAuth = () => {
       try {
-        const savedV4 = localStorage.getItem(STORAGE_KEY);
-        if (!savedV4) return null;
-        const parsed = JSON.parse(savedV4);
-        if (!isSiteContentValid(parsed)) return null;
-        return {
-          ...defaultSiteContent,
-          ...parsed,
-          contact: {
-            ...defaultSiteContent.contact,
-            ...(parsed.contact || {}),
-          },
-          admissionSteps: Array.isArray(parsed.admissionSteps) && parsed.admissionSteps.length > 0
-            ? parsed.admissionSteps
-            : defaultSiteContent.admissionSteps,
-          guides: Array.isArray(parsed.guides) ? parsed.guides : defaultGuides,
-          news: Array.isArray(parsed.news) ? parsed.news : defaultNews,
-        };
+        return sessionStorage.getItem('unram_admin_auth') === 'true';
       } catch {
-        return null;
+        return false;
       }
     };
 
-    // Initial load
-    try {
-      localStorage.removeItem('unram_site_content');
-      localStorage.removeItem('unram_site_content_v2');
+    const loadContent = async () => {
+      const isAdmin = checkAdminAuth();
+      setIsAdminPreview(isAdmin);
 
-      const loaded = loadFromStorage();
-      if (loaded) {
-        setContent(loaded);
-      } else {
-        let initialNews: NewsArticle[] = defaultNews;
-        const customNewsRaw = localStorage.getItem('unram_custom_news');
-        if (customNewsRaw !== null) {
-          try {
-            const parsedCustom = JSON.parse(customNewsRaw);
-            if (Array.isArray(parsedCustom)) {
-              initialNews = parsedCustom;
-            }
-          } catch (e) {
-            console.error(e);
+      if (isAdmin) {
+        // Admin preview mode: read working draft from IndexedDB
+        try {
+          const draft = await getDraftFromDb();
+          if (draft) {
+            setContent(draft);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to load draft from IndexedDB:', e);
+        }
+      }
+
+      // Public visitor mode (or fallback): NEVER read localStorage or IndexedDB!
+      // Fetch /content/site-content.json from server with cache-busting
+      try {
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const fetchUrl = `${basePath}/content/site-content.json?v=${Date.now()}`;
+        const res = await fetch(fetchUrl, { cache: 'no-cache' });
+
+        if (res.ok) {
+          const json = await res.json();
+          const validation = validateSiteContent(json);
+          if (validation.valid && validation.sanitizedContent) {
+            setContent(validation.sanitizedContent);
+            return;
           }
         }
-        const initial: SiteContent = { ...defaultSiteContent, news: initialNews };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-        setContent(initial);
+      } catch {
+        // Silently keep default bundled content if fetch fails or server file not yet uploaded
       }
-    } catch (e) {
-      console.error('Error initializing site content:', e);
-      setContent(defaultSiteContent);
-    }
 
-    // Real-time sync listener (fired when admin saves)
-    const handleSync = () => {
-      const loaded = loadFromStorage();
-      if (loaded) setContent(loaded);
+      // Default fallback
+      setContent(defaultSiteContent);
     };
 
-    window.addEventListener('storage', handleSync);
-    window.addEventListener('unram_content_changed', handleSync);
+    loadContent();
 
+    // Real-time sync listener when admin modifies or saves draft
+    const handleSync = async () => {
+      if (checkAdminAuth()) {
+        try {
+          const draft = await getDraftFromDb();
+          if (draft) {
+            setContent(draft);
+            setIsAdminPreview(true);
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('unram_content_changed', handleSync);
     return () => {
-      window.removeEventListener('storage', handleSync);
       window.removeEventListener('unram_content_changed', handleSync);
     };
   }, []);
 
   const updateContent = (newContent: SiteContent) => {
     setContent(newContent);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newContent));
-      if (Array.isArray(newContent.news)) {
-        localStorage.setItem('unram_custom_news', JSON.stringify(newContent.news));
-      }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('unram_content_changed'));
-      }
-    } catch (e) {
-      console.error(e);
+    saveDraftToDb(newContent).catch((err) => {
+      console.error('Failed to auto-save draft to IndexedDB:', err);
+    });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('unram_content_changed'));
     }
   };
 
   const resetContent = () => {
     setContent(defaultSiteContent);
-    try {
-      localStorage.removeItem('unram_site_content');
-      localStorage.removeItem('unram_site_content_v2');
-      localStorage.removeItem('unram_site_content_v3');
-      localStorage.setItem('unram_custom_news', JSON.stringify(defaultNews));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultSiteContent));
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('unram_content_changed'));
-      }
-    } catch (e) {
-      console.error(e);
+    saveDraftToDb(defaultSiteContent).catch(console.error);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('unram_content_changed'));
     }
   };
 
   return (
-    <ContentContext.Provider value={{ content, updateContent, resetContent }}>
+    <ContentContext.Provider value={{ content, updateContent, resetContent, isAdminPreview }}>
+      {isAdminPreview && (
+        <div className="bg-amber-400 text-slate-900 px-4 py-2 text-xs font-semibold flex items-center justify-between sticky top-0 z-[60] border-b border-amber-500 shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
+            <span>Pratinjau draf, belum dipublikasikan</span>
+          </div>
+          <a
+            href="/en/admin"
+            className="px-2.5 py-1 rounded bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors"
+          >
+            Buka CMS Admin
+          </a>
+        </div>
+      )}
       {children}
     </ContentContext.Provider>
   );
@@ -689,6 +697,7 @@ export function useSiteContent() {
       content: defaultSiteContent,
       updateContent: () => {},
       resetContent: () => {},
+      isAdminPreview: false,
     };
   }
   return context;

@@ -38,10 +38,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['"Instrument Sans"', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        serif: ['Newsreader', 'Georgia', 'serif'],
-        display: ['Newsreader', 'Georgia', 'serif'],
-        body: ['"Instrument Sans"', 'sans-serif'],
+        sans: ['var(--font-instrument-sans)', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['var(--font-newsreader)', 'Georgia', 'serif'],
+        display: ['var(--font-newsreader)', 'Georgia', 'serif'],
+        body: ['var(--font-instrument-sans)', 'sans-serif'],
       },
       fontSize: {
         display: ['clamp(2.75rem, 6vw + 1rem, 5.5rem)', { lineHeight: '1.08', letterSpacing: '-0.02em' }],

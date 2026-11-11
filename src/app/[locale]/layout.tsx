@@ -6,6 +6,7 @@ import { routing, locales } from '@/i18n/routing';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { ContentProvider } from '@/context/ContentContext';
+import { newsreader, instrumentSans } from '@/app/fonts';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -100,15 +101,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className="scroll-smooth">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang={locale} className={`scroll-smooth ${newsreader.variable} ${instrumentSans.variable}`}>
       <body className="min-h-screen flex flex-col font-sans bg-paper text-ink antialiased selection:bg-unram-600 selection:text-white">
         <NextIntlClientProvider messages={messages}>
           <ContentProvider>

@@ -118,7 +118,7 @@ export function Navbar({ locale }: NavbarProps) {
               <span className="font-serif font-normal text-base sm:text-[17px] text-ink tracking-tight leading-tight group-hover:text-unram-600 transition-colors">
                 {t('brandName')}
               </span>
-              <span className="text-[11px] font-medium text-ink-soft uppercase tracking-[0.12em]">
+              <span className="text-xs font-medium text-ink-soft uppercase tracking-[0.12em]">
                 {t('brandSub')}
               </span>
             </div>

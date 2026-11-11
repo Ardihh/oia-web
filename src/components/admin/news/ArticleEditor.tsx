@@ -33,6 +33,8 @@ import {
   getTodayFormatted,
   plainTextToHtml,
 } from '@/lib/newsUtils';
+import { compressImage } from '@/lib/imageCompression';
+import { saveBlobToDb } from '@/lib/db';
 
 interface ArticleEditorProps {
   initialArticle?: NewsArticle | null;
@@ -278,6 +280,11 @@ export function ArticleEditor({
           id: targetLang === 'id' ? trContent : (article.content?.id || ''),
           en: targetLang === 'en' ? trContent : (article.content?.en || ''),
         },
+        translationMeta: {
+          ...article.translationMeta,
+          [targetLang === 'id' ? 'idStatus' : 'enStatus']: 'auto',
+          lastTranslated: new Date().toISOString(),
+        },
       });
 
       showToast(
@@ -324,25 +331,21 @@ export function ArticleEditor({
     }
   };
 
-  // Image Upload Handler
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload Handler (Compressed & saved to IndexedDB)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      showToast('Ukuran foto terlalu besar (maksimal 3MB).', 'error');
-      return;
+    try {
+      const result = await compressImage(file);
+      await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
+      updateArticle({ image: result.path });
+      showToast(
+        `Foto sampul dikompresi (${Math.round(result.originalSize / 1024)} KB → ${Math.round(result.compressedSize / 1024)} KB)`
+      );
+    } catch (err: any) {
+      showToast(err.message || 'Gagal memproses gambar.', 'error');
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      if (base64) {
-        updateArticle({ image: base64 });
-        showToast('Foto sampul berhasil diperbarui.');
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   // Active language data
@@ -965,6 +968,36 @@ export function ArticleEditor({
                 </div>
               </div>
             </div>
+
+            {/* Status Peninjauan Terjemahan */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Peninjauan Terjemahan
+              </h4>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={article.translationMeta?.idStatus === 'reviewed'}
+                  onChange={(e) => {
+                    updateArticle({
+                      translationMeta: {
+                        ...article.translationMeta,
+                        idStatus: e.target.checked ? 'reviewed' : 'auto',
+                      },
+                    });
+                  }}
+                  className="mt-0.5 rounded border-slate-300 text-unram-900 focus:ring-unram-900"
+                />
+                <span className="text-xs text-slate-700 leading-snug">
+                  Tandai terjemahan Bahasa Indonesia sudah ditinjau oleh manusia
+                </span>
+              </label>
+              {article.translationMeta?.idStatus === 'auto' && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200/60 leading-relaxed">
+                  ⚠️ Terjemahan saat ini berstatus draf mesin otomatis.
+                </p>
+              )}
+            </div>
           </div>
         </aside>
       </div>
@@ -1036,6 +1069,13 @@ export function ArticleEditor({
                 <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   <span>Versi Bahasa Inggris belum lengkap. Pengunjung berbahasa Inggris akan melihat versi Bahasa Indonesia sebagai fallback.</span>
+                </div>
+              )}
+
+              {article.translationMeta?.idStatus === 'auto' && isPublishReady && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <span>Perhatian: Terjemahan Bahasa Indonesia dihasilkan otomatis oleh mesin dan belum ditandai sudah ditinjau oleh manusia. Anda tetap dapat menerbitkannya.</span>
                 </div>
               )}
             </div>

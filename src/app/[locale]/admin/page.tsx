@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
 import {
@@ -33,6 +33,12 @@ import {
   Languages,
   Loader2,
   Wand2,
+  AlertTriangle,
+  Archive,
+  HardDrive,
+  FolderDown,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import {
@@ -50,8 +56,34 @@ import {
 import { ArticleListView } from '@/components/admin/news/ArticleListView';
 import { ArticleEditor } from '@/components/admin/news/ArticleEditor';
 import { ArticlePreviewModal } from '@/components/admin/news/ArticlePreviewModal';
+import {
+  getDraftFromDb,
+  saveDraftToDb,
+  saveBlobToDb,
+  getMetadata,
+  setMetadata,
+  clearLocalDraft,
+  getStorageEstimate,
+} from '@/lib/db';
+import { compressImage, computeContentHash } from '@/lib/imageCompression';
+import {
+  generatePublishBundle,
+  inspectPublishBundle,
+  ImportPreview,
+} from '@/lib/bundleZip';
+import { validateSiteContent, downloadRawBackup } from '@/lib/schemaValidator';
+import { isValidHttpsUrl, isValidGoogleMapsEmbedUrl } from '@/lib/domPurify';
 
-const DEFAULT_PASSCODE = 'unram2026';
+// SHA-256 hash of default passcode 'unram2026'
+const DEFAULT_PASSCODE_HASH = '47d6a9d851060c7e5a5037a8dfad149fbe0698199058b22f140086eeced8193a';
+
+async function computeSha256(str: string): Promise<string> {
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 const PRESET_CATEGORIES = [
   { id: 'Program Mobilitas', en: 'Mobility Program' },
@@ -149,52 +181,151 @@ export default function AdminPage() {
   const [isEditingGuide, setIsEditingGuide] = useState(false);
   const [editGuideId, setEditGuideId] = useState<string | null>(null);
 
-  // Check auth & load data on mount
+  // Storage & Export State
+  const [hasUnexportedChanges, setHasUnexportedChanges] = useState(false);
+  const [lastExportedAt, setLastExportedAt] = useState<string | null>(null);
+  const [storageUsage, setStorageUsage] = useState<{ usedMb: number; quotaMb: number; percentUsed: number } | null>(null);
+  const [isExportingBundle, setIsExportingBundle] = useState(false);
+  const [bundleDownloadSuccess, setBundleDownloadSuccess] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importFilename, setImportFilename] = useState<string>('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearConfirmInput, setClearConfirmInput] = useState('');
+  const [storageError, setStorageError] = useState<string | null>(null);
+
+  const refreshStorage = () => {
+    getStorageEstimate().then(setStorageUsage).catch(() => {});
+  };
+
+  // Check auth & load data on mount (with one-time localStorage to IndexedDB migration)
   useEffect(() => {
     setMounted(true);
     const savedAuth = sessionStorage.getItem('unram_admin_auth');
     if (savedAuth === 'true') {
       setIsAuthenticated(true);
     }
-    loadNews();
+
+    const initData = async () => {
+      try {
+        const existingDraft = await getDraftFromDb();
+        if (!existingDraft) {
+          // Check for legacy localStorage content
+          const legacyContentRaw = localStorage.getItem('unram_site_content_v4');
+          const legacyNewsRaw = localStorage.getItem('unram_custom_news');
+
+          let initial: SiteContent = defaultSiteContent;
+          let hadLegacy = false;
+
+          if (legacyContentRaw) {
+            try {
+              const parsed = JSON.parse(legacyContentRaw);
+              const val = validateSiteContent(parsed);
+              if (val.valid && val.sanitizedContent) {
+                initial = val.sanitizedContent;
+                hadLegacy = true;
+              }
+            } catch {}
+          }
+
+          if (legacyNewsRaw) {
+            try {
+              const parsedNews = JSON.parse(legacyNewsRaw);
+              if (Array.isArray(parsedNews)) {
+                initial.news = parsedNews;
+                hadLegacy = true;
+              }
+            } catch {}
+          }
+
+          await saveDraftToDb(initial);
+          setSiteDraft(initial);
+          if (Array.isArray(initial.news)) setNewsList(initial.news);
+
+          if (hadLegacy) {
+            showToast('Draf lama dari penyimpanan lokal berhasil dimigrasikan ke IndexedDB.');
+          }
+        } else {
+          setSiteDraft(existingDraft);
+          if (Array.isArray(existingDraft.news)) setNewsList(existingDraft.news);
+        }
+
+        // Load export metadata
+        const lastExport = await getMetadata('last_exported_at');
+        setLastExportedAt(lastExport);
+        const unexported = await getMetadata('has_unexported_changes');
+        setHasUnexportedChanges(Boolean(unexported));
+      } catch (err: any) {
+        setStorageError(`Gagal memuat database draf: ${err?.message || 'Unknown error'}`);
+      }
+
+      refreshStorage();
+    };
+
+    initData();
   }, []);
 
+  // Inactivity Auto-Logout (60 minutes)
   useEffect(() => {
-    if (content) {
-      setSiteDraft(content);
-      if (Array.isArray(content.news)) {
-        setNewsList(content.news as NewsArticle[]);
-      }
-    }
-  }, [content]);
+    if (!isAuthenticated) return;
+    let lastActivity = Date.now();
 
-  const loadNews = () => {
-    if (Array.isArray(content?.news)) {
-      setNewsList(content.news as NewsArticle[]);
-      return;
-    }
-    const localData = localStorage.getItem('unram_custom_news');
-    if (localData !== null) {
-      try {
-        const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed)) {
-          setNewsList(parsed);
-          return;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    setNewsList(defaultNews as NewsArticle[]);
-  };
+    const onActivity = () => {
+      lastActivity = Date.now();
+    };
 
-  const handleLogin = (e: React.FormEvent) => {
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('click', onActivity);
+
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivity > 60 * 60 * 1000) {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('unram_admin_auth');
+        alert(
+          isEn
+            ? 'Admin session expired automatically after 60 minutes of inactivity.'
+            : 'Sesi admin berakhir otomatis setelah 60 menit inaktivitas.'
+        );
+      }
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('click', onActivity);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, isEn]);
+
+  // Warn on leaving with unexported changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnexportedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnexportedChanges]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === DEFAULT_PASSCODE) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('unram_admin_auth', 'true');
-      setPasscodeError(false);
-    } else {
+    try {
+      const computed = await computeSha256(passcode.trim());
+      const targetHash = (process.env.NEXT_PUBLIC_ADMIN_PASSCODE_HASH || DEFAULT_PASSCODE_HASH)
+        .toLowerCase()
+        .trim();
+
+      if (computed === targetHash) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('unram_admin_auth', 'true');
+        setPasscodeError(false);
+      } else {
+        setPasscodeError(true);
+      }
+    } catch {
       setPasscodeError(true);
     }
   };
@@ -204,9 +335,30 @@ export default function AdminPage() {
     sessionStorage.removeItem('unram_admin_auth');
   };
 
-  // Save full site sections
-  const handleSaveSections = (e?: React.FormEvent) => {
+  // Save full site sections into IndexedDB
+  const handleSaveSections = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    // Validate URLs
+    const contact = siteDraft.contact;
+    if (contact.mapUrl && !isValidGoogleMapsEmbedUrl(contact.mapUrl)) {
+      alert('URL Google Maps Embed tidak valid. Pastikan menggunakan tautan embed resmi Google Maps.');
+      return;
+    }
+
+    const socials = [
+      (contact as any).socialInstagram,
+      (contact as any).socialLinkedin,
+      (contact as any).socialYoutube,
+      (contact as any).socialWhatsapp,
+    ];
+    for (const url of socials) {
+      if (url && url.trim() && !isValidHttpsUrl(url)) {
+        alert(`URL "${url}" tidak valid. Semua tautan sosial media wajib menggunakan protokol https://`);
+        return;
+      }
+    }
+
     const finalDraft = {
       ...siteDraft,
       contact: {
@@ -221,51 +373,77 @@ export default function AdminPage() {
         },
       },
     };
-    updateContent(finalDraft);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
 
-  // Reset to default
-  const handleResetDefaults = () => {
-    if (confirm(isEn ? 'Reset all content to factory defaults?' : 'Kembalikan seluruh konten ke pengaturan awal?')) {
-      resetContent();
-      setSiteDraft(defaultSiteContent);
+    try {
+      await saveDraftToDb(finalDraft);
+      updateContent(finalDraft);
+      setHasUnexportedChanges(true);
       setSaveSuccess(true);
+      setStorageError(null);
+      refreshStorage();
       setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setStorageError(err.message || 'Gagal menyimpan draf ke IndexedDB.');
+      alert(`Gagal menyimpan: ${err.message || 'Penyimpanan lokal bermasalah.'}`);
     }
   };
 
-  // Image File helper
-  const handleImageFile = (
+  // Image File helper (compressed and stored as blob in IndexedDB)
+  const handleImageFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    onLoad: (dataUrl: string) => void
+    onLoad: (pathOrUrl: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onLoad(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const result = await compressImage(file);
+        await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
+        onLoad(result.path);
+        setHasUnexportedChanges(true);
+        refreshStorage();
+        showToast(
+          `Gambar berhasil dikompresi (${Math.round(result.originalSize / 1024)} KB → ${Math.round(
+            result.compressedSize / 1024
+          )} KB)`
+        );
+      } catch (err: any) {
+        alert(err.message || 'Gagal memproses gambar.');
+      }
     }
   };
 
   // Document/PDF File helper
-  const handleDocumentFile = (
+  const handleDocumentFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    onLoad: (dataUrl: string, fileName: string, fileSizeStr: string) => void
+    onLoad: (path: string, fileName: string, fileSizeStr: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeBytes = file.size;
+      const sizeMb = (sizeBytes / (1024 * 1024)).toFixed(1);
       const ext = file.name.split('.').pop()?.toUpperCase() || 'PDF';
       const sizeStr = `${ext} • ${sizeMb} MB`;
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onLoad(reader.result as string, file.name, sizeStr);
-      };
-      reader.readAsDataURL(file);
+
+      if (sizeBytes > 10 * 1024 * 1024) {
+        alert(
+          `Peringatan: Ukuran dokumen (${sizeMb} MB) melebihi 10 MB. File berukuran besar membutuhkan waktu unduh lebih lama bagi pengunjung.`
+        );
+      }
+
+      try {
+        const arrayBuf = await file.arrayBuffer();
+        const hash = await computeContentHash(arrayBuf);
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+        const filename = `doc-${hash}.${fileExt}`;
+        const path = `/uploads/${filename}`;
+        await saveBlobToDb(path, file, filename, file.type || 'application/pdf');
+        onLoad(path, file.name, sizeStr);
+        setHasUnexportedChanges(true);
+        refreshStorage();
+        showToast('Dokumen berhasil diunggah ke draf lokal.');
+      } catch (err: any) {
+        alert(err.message || 'Gagal mengunggah dokumen.');
+      }
     }
   };
 
@@ -321,7 +499,7 @@ export default function AdminPage() {
   };
 
   // ==================== NEWS CRUD (REDESIGNED) ====================
-  const handleSaveNewsArticle = (article: NewsArticle, isPublish: boolean) => {
+  const handleSaveNewsArticle = async (article: NewsArticle, isPublish: boolean) => {
     let updated: NewsArticle[];
     const existingIndex = newsList.findIndex((item) => item.id === article.id);
     if (existingIndex >= 0) {
@@ -331,7 +509,6 @@ export default function AdminPage() {
     }
 
     setNewsList(updated);
-    localStorage.setItem('unram_custom_news', JSON.stringify(updated));
 
     const updatedDraft = {
       ...siteDraft,
@@ -339,6 +516,15 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
+
+    try {
+      await saveDraftToDb(updatedDraft);
+      setHasUnexportedChanges(true);
+      await setMetadata('has_unexported_changes', true);
+      refreshStorage();
+    } catch (err) {
+      console.error('Failed to save draft to IndexedDB:', err);
+    }
 
     if (isPublish) {
       showToast(
@@ -352,10 +538,9 @@ export default function AdminPage() {
     }
   };
 
-  const handleDeleteNewsArticle = (id: string) => {
+  const handleDeleteNewsArticle = async (id: string) => {
     const updated = newsList.filter((item) => item.id !== id);
     setNewsList(updated);
-    localStorage.setItem('unram_custom_news', JSON.stringify(updated));
 
     const updatedDraft = {
       ...siteDraft,
@@ -363,6 +548,15 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
+
+    try {
+      await saveDraftToDb(updatedDraft);
+      setHasUnexportedChanges(true);
+      await setMetadata('has_unexported_changes', true);
+      refreshStorage();
+    } catch (err) {
+      console.error('Failed to delete news from draft db:', err);
+    }
 
     showToast(isEn ? 'Article deleted' : 'Berita berhasil dihapus');
   };
@@ -382,7 +576,7 @@ export default function AdminPage() {
   };
 
   // ==================== GUIDES & HANDBOOKS CRUD ====================
-  const handleSaveGuide = (e: React.FormEvent) => {
+  const handleSaveGuide = async (e: React.FormEvent) => {
     e.preventDefault();
     const currGuides = Array.isArray(siteDraft.guides) && siteDraft.guides.length > 0
       ? siteDraft.guides
@@ -408,6 +602,16 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
+
+    try {
+      await saveDraftToDb(updatedDraft);
+      setHasUnexportedChanges(true);
+      await setMetadata('has_unexported_changes', true);
+      refreshStorage();
+    } catch (err) {
+      console.error('Failed to save guide to draft db:', err);
+    }
+
     resetGuideForm();
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
@@ -420,7 +624,7 @@ export default function AdminPage() {
     window.scrollTo({ top: 400, behavior: 'smooth' });
   };
 
-  const handleDeleteGuide = (id: string) => {
+  const handleDeleteGuide = async (id: string) => {
     if (confirm(isEn ? 'Delete this guidebook/document?' : 'Hapus buku panduan/dokumen ini?')) {
       const currGuides = Array.isArray(siteDraft.guides) ? siteDraft.guides : defaultGuides;
       const updated = currGuides.filter((item) => item.id !== id);
@@ -430,9 +634,116 @@ export default function AdminPage() {
       };
       setSiteDraft(updatedDraft);
       updateContent(updatedDraft);
+
+      try {
+        await saveDraftToDb(updatedDraft);
+        setHasUnexportedChanges(true);
+        await setMetadata('has_unexported_changes', true);
+        refreshStorage();
+      } catch (err) {
+        console.error('Failed to save guide deletion to draft db:', err);
+      }
+
       if (editGuideId === id) resetGuideForm();
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
+    }
+  };
+
+  // ==================== BUNDLE EXPORT & IMPORT ====================
+  const handleExportBundle = async () => {
+    setIsExportingBundle(true);
+    try {
+      const { zipBlob, filename, stats } = await generatePublishBundle(siteDraft);
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      const nowIso = new Date().toISOString();
+      await setMetadata('last_exported_at', nowIso);
+      await setMetadata('has_unexported_changes', false);
+      setLastExportedAt(nowIso);
+      setHasUnexportedChanges(false);
+      setBundleDownloadSuccess(
+        `Paket "${filename}" berhasil dibuat (${stats.articlesCount} berita, ${stats.guidesCount} panduan, ${stats.uploadsCount} file aset).`
+      );
+      showToast('Paket publikasi berhasil diunduh!');
+    } catch (err: any) {
+      alert(`Gagal membuat paket publikasi: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setIsExportingBundle(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    setImportFilename(file.name);
+    try {
+      const preview = await inspectPublishBundle(file);
+      setImportPreview(preview);
+    } catch (err: any) {
+      alert(`Gagal membaca berkas bundle: ${err?.message || 'Format tidak valid'}`);
+    } finally {
+      setIsImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleApplyImport = async () => {
+    if (!importPreview) return;
+    try {
+      await importPreview.apply();
+      const importedDraft = importPreview.content;
+      setSiteDraft(importedDraft);
+      if (Array.isArray(importedDraft.news)) {
+        setNewsList(importedDraft.news);
+      }
+      updateContent(importedDraft);
+      setHasUnexportedChanges(false);
+      await setMetadata('has_unexported_changes', false);
+      setImportPreview(null);
+      refreshStorage();
+      showToast('Paket publikasi berhasil diterapkan ke draf lokal!');
+    } catch (err: any) {
+      alert(`Gagal menerapkan paket: ${err?.message || 'Error'}`);
+    }
+  };
+
+  const handleDownloadRawJson = () => {
+    downloadRawBackup(
+      JSON.stringify(siteDraft, null, 2),
+      `unram-site-content-draft-${new Date().toISOString().slice(0, 10)}.json`
+    );
+    showToast('Cadangan mentah JSON berhasil diunduh.');
+  };
+
+  const handleClearLocalDraft = async () => {
+    if (clearConfirmInput.trim() !== 'HAPUS') {
+      alert('Ketik "HAPUS" secara tepat untuk mengonfirmasi penghapusan draf.');
+      return;
+    }
+    try {
+      await clearLocalDraft();
+      localStorage.removeItem('unram_site_content_v4');
+      localStorage.removeItem('unram_custom_news');
+      setShowClearModal(false);
+      setClearConfirmInput('');
+      setSiteDraft(defaultSiteContent);
+      setNewsList(defaultSiteContent.news || []);
+      updateContent(defaultSiteContent);
+      setHasUnexportedChanges(false);
+      await setMetadata('has_unexported_changes', false);
+      refreshStorage();
+      showToast('Draf lokal berhasil dibersihkan.');
+    } catch (err: any) {
+      alert(`Gagal menghapus draf: ${err?.message}`);
     }
   };
 
@@ -665,6 +976,11 @@ export default function AdminPage() {
           </form>
 
           <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
+            <p className="text-xs text-slate-400 text-center leading-relaxed">
+              {isEn
+                ? 'Convenience gate for static hosting. For university production servers, protect /admin via server Basic Auth or IP allowlist.'
+                : 'Gerbang kenyamanan untuk hosting statis. Pada server produksi universitas, lindungi direktori /admin dengan HTTP Basic Auth atau allowlist IP.'}
+            </p>
             <a
               href={`/${locale}/`}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-unram-900 transition-colors"
@@ -672,21 +988,6 @@ export default function AdminPage() {
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
               <span>{isEn ? 'Back to Website' : 'Kembali ke Website'}</span>
             </a>
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm(isEn ? 'Clear browser cache and reload default content?' : 'Hapus cache browser dan kembalikan konten awal default?')) {
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  resetContent();
-                  window.location.reload();
-                }
-              }}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>{isEn ? 'Reset Cache & Fix Errors' : 'Bersihkan Cache & Perbaiki Data'}</span>
-            </button>
           </div>
         </div>
       </div>
@@ -703,7 +1004,7 @@ export default function AdminPage() {
     { key: 'services', label: isEn ? 'Services' : 'Layanan KUI', icon: LayoutGrid },
     { key: 'faq', label: isEn ? 'FAQ' : 'Tanya Jawab (FAQ)', icon: HelpCircle },
     { key: 'contact', label: isEn ? 'Contact Info' : 'Kontak & Alamat', icon: Phone },
-    { key: 'export', label: isEn ? 'Export JSON' : 'Ekspor JSON', icon: FileJson },
+    { key: 'export', label: isEn ? 'Publish Bundle & Backup' : 'Paket Publikasi & Cadangan', icon: Archive },
   ];
 
   const isEditingArticleView = activeTab === 'news' && newsView === 'editor';
@@ -721,10 +1022,43 @@ export default function AdminPage() {
               <h2 className="font-heading font-extrabold text-sm sm:text-base leading-tight text-white">
                 {isEn ? 'UNRAM International Office CMS' : 'Dashboard Konten KUI UNRAM'}
               </h2>
-              <p className="text-[11px] text-amber-300 font-semibold">
+              <p className="text-xs text-amber-300 font-semibold">
                 Universitas Mataram (Lombok, Indonesia)
               </p>
             </div>
+          </div>
+
+          {/* Status & Storage indicators */}
+          <div className="hidden md:flex items-center gap-3 text-xs">
+            {hasUnexportedChanges ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-semibold animate-pulse">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>Ada perubahan belum diekspor</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Tersinkronisasi</span>
+              </span>
+            )}
+
+            <span className="text-white/20">|</span>
+
+            <span className="text-slate-300 flex items-center gap-1.5">
+              <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                {storageUsage ? `${storageUsage.usedMb} MB` : '...'}
+              </span>
+            </span>
+
+            {lastExportedAt && (
+              <>
+                <span className="text-white/20">|</span>
+                <span className="text-slate-400 text-xs hidden lg:inline">
+                  Ekspor terakhir: {new Date(lastExportedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -2514,37 +2848,365 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ==================== TAB 8: EXPORT & TOOLS ==================== */}
+        {/* ==================== TAB 8: PUBLISH BUNDLE & BACKUP ==================== */}
         {activeTab === 'export' && (
-          <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
-            <div className="pb-4 border-b border-slate-100">
-              <h3 className="font-heading font-bold text-xl text-slate-900">
-                Alat Sinkronisasi & Ekspor Cadangan
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Perubahan tersimpan otomatis di browser. Anda bisa mereset ke data awal jika diperlukan.
-              </p>
+          <div className="space-y-6">
+            {/* Card 1: Buat Paket Publikasi */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <FolderDown className="w-5 h-5 text-unram-900" />
+                    <span>Buat Paket Publikasi (Export ZIP)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                    Hasilkan paket ZIP siap rilis untuk web server statis universitas. Berisi berkas{' '}
+                    <code className="text-unram-700 font-mono bg-unram-50 px-1 py-0.5 rounded">content/site-content.json</code>,
+                    seluruh aset gambar & dokumen di{' '}
+                    <code className="text-unram-700 font-mono bg-unram-50 px-1 py-0.5 rounded">uploads/</code>{' '}
+                    dengan hash konten, serta panduan unggah <code className="text-unram-700 font-mono bg-unram-50 px-1 py-0.5 rounded">README.txt</code>.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isExportingBundle}
+                  onClick={handleExportBundle}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all disabled:opacity-50 flex-shrink-0"
+                >
+                  {isExportingBundle ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses Paket...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Buat & Unduh Paket (.zip)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Status Banner */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Status Draf Lokal:</span>
+                  {hasUnexportedChanges ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Ada perubahan belum diekspor
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Semua perubahan tersimpan rapi
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Terakhir Diekspor:</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    {lastExportedAt
+                      ? new Date(lastExportedAt).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : 'Belum pernah diekspor'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Download Instructions Box */}
+              {bundleDownloadSuccess && (
+                <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                    <span>{bundleDownloadSuccess}</span>
+                  </div>
+                  <div className="text-xs text-emerald-950 space-y-2 pt-2 border-t border-emerald-200/60 leading-relaxed">
+                    <p className="font-bold uppercase tracking-wider text-emerald-900">
+                      Langkah Publikasi ke Server Universitas:
+                    </p>
+                    <ol className="list-decimal pl-5 space-y-1.5 font-medium">
+                      <li>Ekstrak arsip ZIP yang baru saja Anda unduh.</li>
+                      <li>
+                        Akses web server hosting UNRAM melalui FTP / SFTP / cPanel File Manager.
+                      </li>
+                      <li>
+                        Unggah dan timpa folder <code className="bg-emerald-100/80 px-1.5 py-0.5 rounded font-mono font-bold">content/</code> dan <code className="bg-emerald-100/80 px-1.5 py-0.5 rounded font-mono font-bold">uploads/</code> ke direktori web root.
+                      </li>
+                      <li>
+                        <strong>Selesai!</strong> Pengunjung website langsung melihat konten, berita, dan foto terbaru tanpa perlu proses build ulang sistem.
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
-              <h4 className="font-heading font-bold text-sm text-amber-950 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-amber-700" />
-                <span>Kembalikan ke Pengaturan Awal (Reset)</span>
-              </h4>
-              <p className="text-xs text-amber-800 leading-relaxed">
-                Jika Anda ingin membatalkan semua perubahan yang pernah dibuat dan mengembalikan seluruh teks ke kondisi default bawaan KUI UNRAM.
-              </p>
-              <button
-                type="button"
-                onClick={handleResetDefaults}
-                className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold uppercase tracking-wider transition-colors"
-              >
-                Reset ke Data Bawaan
-              </button>
+            {/* Card 2: Pulihkan / Impor Paket */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-unram-900" />
+                    <span>Pulihkan Draf dari Paket (Impor Paket)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                    Unggah kembali paket publikasi (<code className="text-slate-700 font-mono">.zip</code>) atau berkas cadangan (<code className="text-slate-700 font-mono">.json</code>) untuk dipulihkan ke draf lokal browser ini. Anda dapat meninjau rincian jumlah artikel dan berkas sebelum menerapkan pemulihan secara lossless.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer flex-shrink-0">
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Membaca Berkas...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Pilih Berkas Paket (.zip / .json)</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept=".zip,.json"
+                      disabled={isImporting}
+                      onChange={handleImportFile}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Cadangan Mentah & Pembersihan Draf */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+              <div className="pb-5 border-b border-slate-100">
+                <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                  <HardDrive className="w-5 h-5 text-unram-900" />
+                  <span>Cadangan Mentah & Pembersihan Draf</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Kelola cadangan darurat format JSON dan pantau kuota penyimpanan IndexedDB lokal di peramban ini.
+                </p>
+              </div>
+
+              {/* Storage Stats Bar */}
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700">Penyimpanan IndexedDB Lokal:</span>
+                  <span className="font-bold text-slate-900">
+                    {storageUsage
+                      ? `${storageUsage.usedMb} MB terpakai dari ~${storageUsage.quotaMb} MB (${storageUsage.percentUsed}% kuota)`
+                      : 'Menghitung...'}
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-unram-600 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(storageUsage?.percentUsed || 1, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Unduh Cadangan Mentah (JSON)
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Salinan lengkap struktur JSON konten saat ini tanpa menyertakan binary zip.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadRawJson}
+                    className="mt-3 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors shadow-xs"
+                  >
+                    <FileDown className="w-4 h-4 text-slate-500" />
+                    <span>Unduh Cadangan JSON</span>
+                  </button>
+                </div>
+
+                <div className="p-5 rounded-xl border border-rose-200 bg-rose-50/40 space-y-2 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider">
+                      Bersihkan Draf Lokal
+                    </h4>
+                    <p className="text-xs text-rose-700 mt-1">
+                      Hapus seluruh draf lokal dan media di browser ini serta kembalikan ke konten bawaan sistem.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowClearModal(true)}
+                    className="mt-3 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-xs"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Hapus Draf Lokal...</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
         </Container>
+      )}
+
+      {/* Import Confirmation Modal */}
+      {importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 bg-unram-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Archive className="w-5 h-5 text-amber-300" />
+                <h3 className="font-heading font-bold text-base">Konfirmasi Impor Paket</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportPreview(null)}
+                className="p-1 rounded text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Berkas paket <span className="font-bold text-slate-900 font-mono">{importFilename || 'Paket Publikasi'}</span> berhasil dibaca dan diverifikasi. Berikut adalah ringkasan konten yang akan dipulihkan ke draf lokal Anda:
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-xl font-extrabold text-unram-900">
+                    {importPreview.summary.articles}
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mt-0.5">
+                    Artikel Berita
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-xl font-extrabold text-unram-900">
+                    {importPreview.summary.guides}
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mt-0.5">
+                    Buku Panduan
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="text-xl font-extrabold text-unram-900">
+                    {importPreview.summary.files}
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mt-0.5">
+                    Berkas Media
+                  </div>
+                </div>
+              </div>
+
+              {importPreview.summary.updatedAt && (
+                <p className="text-xs text-slate-500">
+                  Tanggal Pembuatan Paket:{' '}
+                  <span className="font-semibold text-slate-700">
+                    {new Date(importPreview.summary.updatedAt).toLocaleString('id-ID')}
+                  </span>
+                </p>
+              )}
+
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                Penerapan paket ini akan menggantikan isi draf di peramban saat ini dengan konten dari paket. Proses ini berlangsung lossless.
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setImportPreview(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyImport}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-unram-900 hover:bg-unram-800 text-white text-xs font-bold shadow-md transition-colors"
+              >
+                <Check className="w-4 h-4" />
+                <span>Terapkan & Pulihkan ke Draf</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Draft Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-rose-200 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 bg-rose-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-white" />
+                <h3 className="font-heading font-bold text-base">Konfirmasi Hapus Draf</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowClearModal(false);
+                  setClearConfirmInput('');
+                }}
+                className="p-1 rounded text-rose-100 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-700 leading-relaxed">
+                Tindakan ini akan <strong>menghapus seluruh draf lokal dan file media</strong> dari penyimpanan IndexedDB peramban ini dan mengembalikan situs ke konten bawaan sistem.
+              </p>
+              <p className="text-xs text-rose-700 font-semibold">
+                Ketik <span className="font-mono bg-rose-100 px-1.5 py-0.5 rounded text-rose-900">HAPUS</span> di bawah ini untuk mengonfirmasi:
+              </p>
+              <input
+                type="text"
+                value={clearConfirmInput}
+                onChange={(e) => setClearConfirmInput(e.target.value)}
+                placeholder="Ketik HAPUS"
+                className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 font-mono focus:border-rose-600 focus:ring-1 focus:ring-rose-600"
+              />
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowClearModal(false);
+                  setClearConfirmInput('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={clearConfirmInput.trim() !== 'HAPUS'}
+                onClick={handleClearLocalDraft}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-bold shadow-md transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Hapus Semua Draf</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Article Live Preview Modal */}

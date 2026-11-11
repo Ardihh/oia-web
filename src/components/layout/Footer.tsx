@@ -90,7 +90,7 @@ export function Footer({ locale }: FooterProps) {
                 <h3 className="font-serif font-normal text-paper text-base leading-tight">
                   {t('aboutTitle')}
                 </h3>
-                <p className="text-[11px] text-blue-300 font-medium uppercase tracking-[0.12em]">
+                <p className="text-xs text-blue-300 font-medium uppercase tracking-[0.12em]">
                   {tCommon('unramName')}
                 </p>
               </div>

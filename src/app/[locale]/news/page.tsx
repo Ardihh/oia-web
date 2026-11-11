@@ -1,142 +1,34 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
-import { ArrowLeft, ArrowRight, Calendar, Tag, User, Share2, Check, BookOpen, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, Tag, User, Share2, Check, BookOpen, Globe } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { useSiteContent, defaultNews, NewsArticle } from '@/context/ContentContext';
-import { isHtmlContent, sanitizeHtml, translateText, translateHtml } from '@/lib/newsUtils';
+import { isHtmlContent } from '@/lib/newsUtils';
+import { sanitizeRichHtml } from '@/lib/domPurify';
 
 function NewsContent() {
   const locale = useLocale();
   const isEn = locale === 'en';
   const lang = isEn ? 'en' : 'id';
+  const oppositeLang = isEn ? 'id' : 'en';
   const searchParams = useSearchParams();
   const articleId = searchParams.get('id');
   const { content } = useSiteContent();
 
   const [copied, setCopied] = useState(false);
-  const [articles, setArticles] = useState<NewsArticle[]>(
-    Array.isArray(content?.news) ? content.news : defaultNews
-  );
-
-  useEffect(() => {
-    if (Array.isArray(content?.news)) {
-      setArticles(content.news);
-      return;
-    }
-    try {
-      const custom = localStorage.getItem('unram_custom_news');
-      if (custom !== null) {
-        const parsed = JSON.parse(custom);
-        if (Array.isArray(parsed)) {
-          setArticles(parsed);
-          return;
-        }
-      }
-    } catch {}
-    setArticles(defaultNews);
-  }, [content?.news]);
+  const articles: NewsArticle[] = Array.isArray(content?.news) && content.news.length > 0
+    ? content.news
+    : defaultNews;
 
   // Find active article if query parameter `id` is given
   const currentArticle = articleId
     ? articles.find((a) => a.id === articleId) || articles[0]
     : null;
-
-  // On-the-fly translation state (if article is in EN and user switches to ID, or vice versa)
-  const [onFlyTranslated, setOnFlyTranslated] = useState<{
-    articleId: string;
-    lang: string;
-    title?: string;
-    summary?: string;
-    content?: string;
-  } | null>(null);
-  const [isTranslatingOnFly, setIsTranslatingOnFly] = useState(false);
-
-  useEffect(() => {
-    if (!currentArticle) return;
-
-    const targetLang = lang;
-    const sourceLang = isEn ? 'id' : 'en';
-
-    const targetTitle = typeof currentArticle.title === 'object' ? currentArticle.title?.[targetLang]?.trim() : '';
-    const sourceTitle = typeof currentArticle.title === 'object' ? currentArticle.title?.[sourceLang]?.trim() : (typeof currentArticle.title === 'string' ? currentArticle.title : '');
-
-    const targetContent = typeof currentArticle.content === 'object' ? currentArticle.content?.[targetLang]?.trim() : '';
-    const sourceContent = typeof currentArticle.content === 'object' ? currentArticle.content?.[sourceLang]?.trim() : '';
-
-    const needsTranslation = (!targetTitle || !targetContent || targetContent === '<p></p>') && Boolean(sourceTitle || sourceContent);
-
-    if (needsTranslation && sourceLang !== targetLang) {
-      if (onFlyTranslated?.articleId === currentArticle.id && onFlyTranslated?.lang === targetLang) {
-        return;
-      }
-
-      let isMounted = true;
-      setIsTranslatingOnFly(true);
-
-      const doTranslate = async () => {
-        try {
-          const trTitle = targetTitle || (sourceTitle ? await translateText(sourceTitle, sourceLang, targetLang) : '');
-          const trSummary = (typeof currentArticle.summary === 'object' && currentArticle.summary?.[targetLang]?.trim())
-            || (typeof currentArticle.summary === 'object' && currentArticle.summary?.[sourceLang]
-                ? await translateText(currentArticle.summary[sourceLang], sourceLang, targetLang)
-                : '');
-          const trContent = (targetContent && targetContent !== '<p></p>')
-            ? targetContent
-            : (sourceContent ? await translateHtml(sourceContent, sourceLang, targetLang) : '');
-
-          if (isMounted) {
-            setOnFlyTranslated({
-              articleId: currentArticle.id,
-              lang: targetLang,
-              title: trTitle,
-              summary: trSummary,
-              content: trContent,
-            });
-
-            // Persist the translated article in localStorage so subsequent loads are instant
-            const updatedArticle: NewsArticle = {
-              ...currentArticle,
-              title: {
-                id: targetLang === 'id' ? trTitle : (currentArticle.title?.id || ''),
-                en: targetLang === 'en' ? trTitle : (currentArticle.title?.en || ''),
-              },
-              summary: {
-                id: targetLang === 'id' ? trSummary : (currentArticle.summary?.id || ''),
-                en: targetLang === 'en' ? trSummary : (currentArticle.summary?.en || ''),
-              },
-              content: {
-                id: targetLang === 'id' ? trContent : (currentArticle.content?.id || ''),
-                en: targetLang === 'en' ? trContent : (currentArticle.content?.en || ''),
-              },
-            };
-
-            setArticles((prev) => {
-              const updatedList = prev.map((a) => (a.id === updatedArticle.id ? updatedArticle : a));
-              try {
-                localStorage.setItem('unram_custom_news', JSON.stringify(updatedList));
-              } catch {}
-              return updatedList;
-            });
-          }
-        } catch {
-          // Silently fall back
-        } finally {
-          if (isMounted) setIsTranslatingOnFly(false);
-        }
-      };
-
-      doTranslate();
-
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [currentArticle?.id, lang]);
 
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -146,7 +38,7 @@ function NewsContent() {
     }
   };
 
-  // Helper to extract localized string
+  // Helper to extract localized string with fallback awareness
   const getField = (field: any) => {
     if (!field) return '';
     if (typeof field === 'object') {
@@ -157,12 +49,15 @@ function NewsContent() {
 
   // 1. DETAIL ARTICLE VIEW
   if (currentArticle) {
-    const isAutoActive = onFlyTranslated?.articleId === currentArticle.id && onFlyTranslated?.lang === lang;
-    const title = (isAutoActive && onFlyTranslated?.title) ? onFlyTranslated.title : getField(currentArticle.title);
-    const summary = (isAutoActive && onFlyTranslated?.summary) ? onFlyTranslated.summary : getField(currentArticle.summary);
+    const hasActiveLangTitle = typeof currentArticle.title === 'object' && Boolean(currentArticle.title?.[lang]?.trim());
+    const hasActiveLangContent = typeof currentArticle.content === 'object' && Boolean(currentArticle.content?.[lang]?.trim()) && currentArticle.content?.[lang] !== '<p></p>';
+    const isLanguageMissing = !hasActiveLangTitle && !hasActiveLangContent;
+
+    const title = getField(currentArticle.title);
+    const summary = getField(currentArticle.summary);
     const category = getField(currentArticle.category);
     const date = getField(currentArticle.date);
-    const rawContent = (isAutoActive && onFlyTranslated?.content) ? onFlyTranslated.content : getField(currentArticle.content);
+    const rawContent = getField(currentArticle.content);
     const author = currentArticle.author || (isEn ? 'IAO UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
     const otherArticles = articles
       .filter((a) => a.id !== currentArticle.id && a.status !== 'draft')
@@ -213,6 +108,20 @@ function NewsContent() {
             </button>
           </div>
 
+          {/* Missing Language Notice */}
+          {isLanguageMissing && (
+            <div className="mb-6 p-4 rounded-[4px] border border-hairline bg-unram-50 flex items-center justify-between text-xs text-ink-soft">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-unram-600 flex-shrink-0" />
+                <span>
+                  {isEn
+                    ? 'This article is currently only published in Indonesian. Showing original Indonesian version.'
+                    : 'Artikel ini saat ini baru diterbitkan dalam Bahasa Inggris. Menampilkan versi asli Bahasa Inggris.'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Article Header */}
           <div className="max-w-3xl">
             {/* Meta Eyebrow */}
@@ -230,24 +139,10 @@ function NewsContent() {
               <span className="font-medium text-ink">{author}</span>
               <span>&bull;</span>
               <span>Universitas Mataram, Lombok</span>
-
-              {isTranslatingOnFly && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium animate-pulse ml-auto sm:ml-2">
-                  <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
-                  <span>{isEn ? 'Translating article to English...' : 'Menerjemahkan artikel ke Bahasa Indonesia...'}</span>
-                </span>
-              )}
-
-              {isAutoActive && !isTranslatingOnFly && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-medium ml-auto sm:ml-2">
-                  <Sparkles className="w-3 h-3 text-emerald-600" />
-                  <span>{isEn ? 'Auto-translated' : 'Diterjemahkan otomatis'}</span>
-                </span>
-              )}
             </div>
           </div>
 
-          {/* Featured Image (3:2 or 16:9 straight crop, 4px radius, hairline border per DESIGN.md) */}
+          {/* Featured Image */}
           <div className="my-10 max-w-4xl">
             <div className="relative aspect-[16/9] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100">
               <Image
@@ -263,7 +158,7 @@ function NewsContent() {
               <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide flex flex-wrap items-center justify-between gap-2">
                 <span>{getField(currentArticle.imageCaption) || `${title} — Dokumentasi Kegiatan KUI UNRAM.`}</span>
                 {currentArticle.imageCredit && (
-                  <span className="text-[11px] text-ink-soft/70">Foto: {currentArticle.imageCredit}</span>
+                  <span className="text-xs text-ink-soft/70">Foto: {currentArticle.imageCredit}</span>
                 )}
               </p>
             ) : (
@@ -285,7 +180,7 @@ function NewsContent() {
             {isHtmlContent(rawContent) ? (
               <div
                 className="article-prose prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(rawContent) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(rawContent) }}
               />
             ) : (
               bodyParagraphs.map((para: string, idx: number) => (

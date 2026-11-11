@@ -112,7 +112,7 @@ export function Hero({ locale }: HeroProps) {
             <div className="relative aspect-[4/5] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100">
               <Image
                 src={bgImage}
-                alt="Universitas Mataram International Campus"
+                alt={locale === 'en' ? 'Universitas Mataram International Affairs Office Campus' : 'Gedung Kantor Urusan Internasional Universitas Mataram'}
                 fill
                 priority
                 sizes="(min-width: 1024px) 40vw, 90vw"
