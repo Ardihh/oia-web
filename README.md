@@ -1,7 +1,7 @@
 # Kantor Urusan Internasional - Universitas Mataram (UNRAM)
-### *International Affairs Office Bilingual Portal*
+### *Office of International Affairs Bilingual Portal*
 
-A modern, accessible, bilingual (`/id` and `/en`) one-page website designed for the **International Affairs Office (Kantor Urusan Internasional / KUI)** of Universitas Mataram, Lombok, Indonesia.
+A modern, accessible, bilingual (`/id` and `/en`) one-page website designed for the **Office of International Affairs (Kantor Urusan Internasional / KUI)** of Universitas Mataram, Lombok, Indonesia.
 
 Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, **next-intl**, **Framer Motion (`motion`)**, and **Lucide React**. Configured for high-speed **static export (`output: 'export'`)** ready to deploy on campus web servers (Apache, Nginx, or any standard static host).
 

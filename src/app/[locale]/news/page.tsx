@@ -58,7 +58,7 @@ function NewsContent() {
     const category = getField(currentArticle.category);
     const date = getField(currentArticle.date);
     const rawContent = getField(currentArticle.content);
-    const author = currentArticle.author || (isEn ? 'IAO UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
+    const author = currentArticle.author || (isEn ? 'OIA UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
     const otherArticles = articles
       .filter((a) => a.id !== currentArticle.id && a.status !== 'draft')
       .slice(0, 3);
@@ -69,10 +69,10 @@ function NewsContent() {
       : [
           summary,
           isEn
-            ? `The International Affairs Office (IAO) of Universitas Mataram continues to demonstrate sustained dedication to elevating higher education internationalization across the Nusa Tenggara archipelago. Through proactive academic facilitation, student welfare support, and strategic global consortia, UNRAM fosters an ecosystem where Indonesian scholars thrive globally while welcoming international fellows to Lombok.`
+            ? `The Office of International Affairs (OIA) of Universitas Mataram continues to demonstrate sustained dedication to elevating higher education internationalization across the Nusa Tenggara archipelago. Through proactive academic facilitation, student welfare support, and strategic global consortia, UNRAM fosters an ecosystem where Indonesian scholars thrive globally while welcoming international fellows to Lombok.`
             : `Kantor Urusan Internasional (KUI) Universitas Mataram terus memperkuat komitmennya dalam memperluas jangkauan kerja sama global dan memberikan pendampingan komprehensif bagi civitas akademika. Melalui penyelenggaraan agenda ini, mahasiswa dan tenaga pengajar UNRAM didorong untuk secara aktif mengambil peran dalam program internasionalisasi di berbagai belahan dunia.`,
           isEn
-            ? `Prospective candidates and university stakeholders interested in participating in upcoming bilateral academic initiatives or requesting institutional endorsement letters are encouraged to consult directly with IAO officers at the UNRAM Rectorate Building or via our official inquiry channels.`
+            ? `Prospective candidates and university stakeholders interested in participating in upcoming bilateral academic initiatives or requesting institutional endorsement letters are encouraged to consult directly with OIA officers at the UNRAM Rectorate Building or via our official inquiry channels.`
             : `Bagi mahasiswa, dosen, maupun mitra institusi internasional yang membutuhkan informasi lebih lanjut mengenai pelaksanaan program, permohonan surat rekomendasi resmi, atau konsultasi kerja sama, dipersilakan menghubungi narahubung KUI UNRAM di Gedung Rektorat Lantai 1 atau melalui email resmi io@unram.ac.id.`,
         ];
 
@@ -163,7 +163,7 @@ function NewsContent() {
               </p>
             ) : (
               <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide">
-                {title} &mdash; {isEn ? 'Documentation of UNRAM International Affairs Office Activities.' : 'Dokumentasi Kegiatan Kantor Urusan Internasional UNRAM.'}
+                {title} &mdash; {isEn ? 'Documentation of UNRAM Office of International Affairs Activities.' : 'Dokumentasi Kegiatan Kantor Urusan Internasional UNRAM.'}
               </p>
             )}
           </div>
@@ -195,7 +195,7 @@ function NewsContent() {
               </h4>
               <p className="text-sm text-ink-soft leading-relaxed">
                 {isEn
-                  ? 'For further inquiries regarding this press release, academic exchange eligibility, or international partnership MoUs, contact the UNRAM International Affairs Office via email at io@unram.ac.id.'
+                  ? 'For further inquiries regarding this press release, academic exchange eligibility, or international partnership MoUs, contact the UNRAM Office of International Affairs via email at io@unram.ac.id.'
                   : 'Untuk konfirmasi berita, permohonan liputan, maupun pengajuan kerja sama dan beasiswa mobilitas, silakan menghubungi Sekretariat KUI UNRAM melalui surel resmi di io@unram.ac.id.'}
               </p>
             </div>

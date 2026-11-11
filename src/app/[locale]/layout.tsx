@@ -21,7 +21,7 @@ export async function generateMetadata({
   const isEn = locale === 'en';
 
   const title = isEn
-    ? 'International Affairs Office - Universitas Mataram (UNRAM)'
+    ? 'Office of International Affairs - Universitas Mataram (UNRAM)'
     : 'Kantor Urusan Internasional - Universitas Mataram (UNRAM)';
   const description = isEn
     ? 'Official portal for international admissions, global academic partnerships, student mobility (IISMA), scholarships, and visitor services at Universitas Mataram, Lombok, Indonesia.'
@@ -32,13 +32,14 @@ export async function generateMetadata({
   return {
     title: {
       default: title,
-      template: `%s | ${isEn ? 'IAO UNRAM' : 'KUI UNRAM'}`,
+      template: `%s | ${isEn ? 'OIA UNRAM' : 'KUI UNRAM'}`,
     },
     description,
     keywords: [
       'Universitas Mataram',
       'UNRAM',
-      'International Office UNRAM',
+      'Office of International Affairs UNRAM',
+      'OIA UNRAM',
       'KUI UNRAM',
       'Study in Lombok',
       'Study in Indonesia',
@@ -59,7 +60,7 @@ export async function generateMetadata({
       title,
       description,
       url: `/${locale}/`,
-      siteName: isEn ? 'IAO Universitas Mataram' : 'KUI Universitas Mataram',
+      siteName: isEn ? 'OIA Universitas Mataram' : 'KUI Universitas Mataram',
       locale: isEn ? 'en_US' : 'id_ID',
       type: 'website',
       images: [

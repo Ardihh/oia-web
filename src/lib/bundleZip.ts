@@ -196,7 +196,7 @@ LANGKAH PENERAPAN DI SERVER:
    secara instan kepada seluruh pengunjung tanpa perlu build ulang program.
 
 ====================================================================
-KUI Universitas Mataram (International Affairs Office - UNRAM)
+KUI Universitas Mataram (Office of International Affairs - UNRAM)
 Lombok, Nusa Tenggara Barat, Indonesia
 ====================================================================`;
 

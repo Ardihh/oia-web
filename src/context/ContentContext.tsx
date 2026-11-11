@@ -196,7 +196,7 @@ export const defaultNews: NewsArticle[] = [
     },
     content: {
       id: 'Kantor Urusan Internasional (KUI) Universitas Mataram secara resmi menyelenggarakan sesi sosialisasi intensif program Indonesian International Student Mobility Awards (IISMA) 2026. Acara yang dihadiri lebih dari 350 mahasiswa dari berbagai fakultas ini berfokus pada strategi penulisan esai motivasi, simulasi wawancara bahasa Inggris, serta tata cara pemilihan universitas mitra terkemuka di kawasan Eropa, Amerika, dan Asia.\n\nDalam sambutannya, Wakil Rektor Bidang Kerja Sama dan Internasionalisasi UNRAM menegaskan komitmen universitas dalam memfasilitasi mahasiswa dengan pelatihan TOEFL/IELTS intensif serta pendampingan administrasi penuh. Sejumlah alumni IISMA tahun sebelumnya turut berbagi tips praktis mengenai adaptasi budaya dan keberhasilan studi di kampus tujuan.',
-      en: 'The International Affairs Office (IAO) of Universitas Mataram officially hosted a comprehensive briefing session for the Indonesian International Student Mobility Awards (IISMA) 2026. Attended by over 350 undergraduates across diverse faculties, the session spotlighted strategic essay formulating, English interview simulations, and tailored university selection across top-tier partner institutions in Europe, the Americas, and Asia.\n\nIn his opening keynote, UNRAM\'s Vice Rector for Cooperation and Global Affairs emphasized institutional commitments to provide subsidized language certifications and seamless credit transfer frameworks. Awardees from preceding cohorts shared firsthand reflections on cross-cultural adaptation and academic excellence abroad.',
+      en: 'The Office of International Affairs (OIA) of Universitas Mataram officially hosted a comprehensive briefing session for the Indonesian International Student Mobility Awards (IISMA) 2026. Attended by over 350 undergraduates across diverse faculties, the session spotlighted strategic essay formulating, English interview simulations, and tailored university selection across top-tier partner institutions in Europe, the Americas, and Asia.\n\nIn his opening keynote, UNRAM\'s Vice Rector for Cooperation and Global Affairs emphasized institutional commitments to provide subsidized language certifications and seamless credit transfer frameworks. Awardees from preceding cohorts shared firsthand reflections on cross-cultural adaptation and academic excellence abroad.',
     },
     image: '/images/news-1.jpg',
     author: 'Tim Humas & Media KUI UNRAM',
@@ -230,11 +230,11 @@ export const defaultNews: NewsArticle[] = [
     },
     summary: {
       id: 'KUI UNRAM menggelar sesi orientasi budaya, tata tertib kampus, serta kelas adaptasi bagi mahasiswa asing semester ini.',
-      en: 'IAO UNRAM delivered campus orientation, cultural adaptation briefings, and student welfare support for incoming international fellows.',
+      en: 'OIA UNRAM delivered campus orientation, cultural adaptation briefings, and student welfare support for incoming international fellows.',
     },
     content: {
       id: 'KUI Universitas Mataram menyambut hangat rombongan mahasiswa internasional baru dari berbagai negara seperti Jerman, Jepang, Korea Selatan, dan Timor Leste yang mengikuti program semesteran Bahasa Indonesia bagi Penutur Asing (BIPA) dan Studi Budaya Sasak.\n\nOrientasi mencakup pengenalan sistem akademik digital SIAKAD, tata tertib kampus, panduan keselamatan lingkungan, serta pendampingan langsung oleh rekan mahasiswa UNRAM (Student Buddies) untuk membantu adaptasi di lingkungan masyarakat Mataram.',
-      en: 'IAO Universitas Mataram warmly welcomed incoming international students from Germany, Japan, South Korea, and Timor-Leste enrolled in the Indonesian Language for Foreign Speakers (BIPA) and Sasak Cultural Studies programs.\n\nThe onboarding program delivered comprehensive walkthroughs of campus academic portals, immigration protocol, student welfare amenities, and paired international candidates with local UNRAM Student Buddies to facilitate seamless cultural integration.',
+      en: 'OIA Universitas Mataram warmly welcomed incoming international students from Germany, Japan, South Korea, and Timor-Leste enrolled in the Indonesian Language for Foreign Speakers (BIPA) and Sasak Cultural Studies programs.\n\nThe onboarding program delivered comprehensive walkthroughs of campus academic portals, immigration protocol, student welfare amenities, and paired international candidates with local UNRAM Student Buddies to facilitate seamless cultural integration.',
     },
     image: '/images/news-3.jpg',
     author: 'Divisi Layanan Mahasiswa Asing KUI',
@@ -259,7 +259,7 @@ export const defaultSiteContent: SiteContent = {
     },
     subtitle: {
       id: 'KUI Universitas Mataram memfasilitasi pertukaran mahasiswa, kolaborasi riset internasional, dan kemitraan akademik lintas benua di jantung Nusa Tenggara Barat.',
-      en: 'The International Affairs Office of Universitas Mataram connects students, faculty, and research consortia across continents from the tropical heart of West Nusa Tenggara.',
+      en: 'The Office of International Affairs of Universitas Mataram connects students, faculty, and research consortia across continents from the tropical heart of West Nusa Tenggara.',
     },
     ctaStudy: {
       id: 'Kuliah di UNRAM',
@@ -297,7 +297,7 @@ export const defaultSiteContent: SiteContent = {
       title: { id: 'Pengajuan Berkas Online', en: 'Submit Online Dossier' },
       desc: {
         id: 'Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.',
-        en: 'Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents.',
+        en: 'Complete the official OIA UNRAM online registration form and upload certified digital copies of all required documents.',
       },
     },
     {
@@ -305,7 +305,7 @@ export const defaultSiteContent: SiteContent = {
       title: { id: 'Izin Belajar & Kedatangan', en: 'Study Permit & Arrival' },
       desc: {
         id: 'Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).',
-        en: 'After the Letter of Acceptance (LoA) is issued, the IAO team assists with the Ministry of Education study permit and e-Visa (KITAS).',
+        en: 'After the Letter of Acceptance (LoA) is issued, the OIA team assists with the Ministry of Education study permit and e-Visa (KITAS).',
       },
     },
   ],
@@ -317,7 +317,7 @@ export const defaultSiteContent: SiteContent = {
     },
     description1: {
       id: 'Kantor Urusan Internasional (KUI) adalah unit kerja pelaksana di bawah Rektorat Universitas Mataram yang bertanggung jawab menginisiasi, mengembangkan, serta mengelola kerja sama akademik dan mobilitas internasional.',
-      en: 'The International Affairs Office (IAO) is the executive bureau under the Rectorate of Universitas Mataram entrusted with fostering, expanding, and overseeing international academic partnerships and cross-border mobility.',
+      en: 'The Office of International Affairs (OIA) is the executive bureau under the Rectorate of Universitas Mataram entrusted with fostering, expanding, and overseeing international academic partnerships and cross-border mobility.',
     },
     description2: {
       id: 'Kami bertekad menjadikan UNRAM sebagai episentrum pendidikan tinggi berdaya saing global berbasis riset kepulauan dan kearifan lokal Nusa Tenggara Barat.',
@@ -354,7 +354,7 @@ export const defaultSiteContent: SiteContent = {
     },
     messageRole: {
       id: 'Kepala Kantor Urusan Internasional',
-      en: 'Head of International Affairs Office',
+      en: 'Head of Office of International Affairs',
     },
     messageOffice: {
       id: 'Universitas Mataram',
@@ -491,7 +491,7 @@ export const defaultSiteContent: SiteContent = {
         },
         a: {
           id: 'Setelah diterima resmi, KUI UNRAM akan mengurus Rekomendasi Izin Belajar ke Kementerian. Selanjutnya, tim kami memandu proses permohonan e-Visa tinggal terbatas hingga kedatangan di Bandara Internasional Lombok.',
-          en: 'Once admitted, IAO UNRAM assists in obtaining the mandatory Study Permit from the Ministry of Higher Education. We then guide you through the electronic limited-stay visa (e-ITAS) process prior to landing at Lombok International Airport.',
+          en: 'Once admitted, OIA UNRAM assists in obtaining the mandatory Study Permit from the Ministry of Higher Education. We then guide you through the electronic limited-stay visa (e-ITAS) process prior to landing at Lombok International Airport.',
         },
       },
       {
@@ -513,7 +513,7 @@ export const defaultSiteContent: SiteContent = {
         },
         a: {
           id: 'Mahasiswa aktif UNRAM dapat memantau info seleksi di situs KUI, mengikuti workshop pembekalan, dan mengajukan rekomendasi resmi universitas ke kantor kami sebelum batas tenggat program nasional.',
-          en: 'Enrolled UNRAM students can access eligibility guidelines on our portal, participate in preparation workshops, and request official institutional nomination letters from IAO UNRAM ahead of national deadlines.',
+          en: 'Enrolled UNRAM students can access eligibility guidelines on our portal, participate in preparation workshops, and request official institutional nomination letters from OIA UNRAM ahead of national deadlines.',
         },
       },
       {

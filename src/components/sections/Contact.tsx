@@ -65,11 +65,11 @@ export function Contact({ locale }: ContactProps) {
 
     if (!isWeb3FormsConfigured) {
       console.warn('Web3Forms key is not configured. Redirecting to mailto fallback.');
-      const subjectEncoded = encodeURIComponent(`[IAO UNRAM Inquiry] ${formData.subject}: ${formData.name}`);
+      const subjectEncoded = encodeURIComponent(`[OIA UNRAM Inquiry] ${formData.subject}: ${formData.name}`);
       const bodyEncoded = encodeURIComponent(
         `Name: ${formData.name}\nEmail: ${formData.email}\nTopic: ${formData.subject}\n\nMessage:\n${formData.message}`
       );
-      window.location.href = `mailto:io@unram.ac.id?subject=${subjectEncoded}&body=${bodyEncoded}`;
+      window.location.href = `mailto:${emailValue}?subject=${subjectEncoded}&body=${bodyEncoded}`;
       return;
     }
 
@@ -87,9 +87,9 @@ export function Contact({ locale }: ContactProps) {
           access_key: web3formsKey,
           name: formData.name,
           email: formData.email,
-          subject: `[IAO UNRAM Inquiry] ${formData.subject}: ${formData.name}`,
+          subject: `[OIA UNRAM Inquiry] ${formData.subject}: ${formData.name}`,
           message: formData.message,
-          from_name: 'IAO UNRAM Website Contact Form',
+          from_name: 'OIA UNRAM Website Contact Form',
         }),
       });
 
@@ -418,8 +418,8 @@ export function Contact({ locale }: ContactProps) {
                       </p>
                       <p className="text-amber-800 mt-0.5 leading-relaxed">
                         {locale === 'en'
-                          ? 'Inquiries will be composed directly to io@unram.ac.id.'
-                          : 'Pesan akan diarahkan langsung melalui email resmi io@unram.ac.id.'}
+                          ? `Inquiries will be composed directly to ${emailValue}.`
+                          : `Pesan akan diarahkan langsung melalui email resmi ${emailValue}.`}
                       </p>
                     </div>
                   </div>

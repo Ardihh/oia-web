@@ -91,7 +91,7 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
   const date = getDate();
   const content = getContent();
   const caption = getCaption();
-  const author = article.author || (previewLang === 'en' ? 'IAO UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
+  const author = article.author || (previewLang === 'en' ? 'OIA UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
   const image = article.image || '/images/news-1.jpg';
 
   const isHtml = /<[a-z][\s\S]*>/i.test(content);
@@ -306,12 +306,12 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
                 </h4>
                 <p className="text-xs text-ink-soft mt-1">
                   {isEn
-                    ? 'Contact International Affairs Office Universitas Mataram for official statements.'
+                    ? 'Contact Office of International Affairs Universitas Mataram for official statements.'
                     : 'Hubungi Kantor Urusan Internasional Universitas Mataram untuk konfirmasi resmi.'}
                 </p>
               </div>
               <span className="inline-flex items-center justify-center px-4 py-2 rounded-[4px] bg-unram-900 text-white text-xs font-medium cursor-default flex-shrink-0">
-                {isEn ? 'Contact IAO Team' : 'Hubungi Tim KUI'}
+                {isEn ? 'Contact OIA Team' : 'Hubungi Tim KUI'}
               </span>
             </div>
           </div>

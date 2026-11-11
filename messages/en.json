@@ -1,11 +1,11 @@
 {
   "common": {
-    "siteTitle": "International Affairs Office - Universitas Mataram",
+    "siteTitle": "Office of International Affairs - Universitas Mataram",
     "siteTagline": "Gateway to Global Mobility and International Partnerships at UNRAM",
     "unramName": "Universitas Mataram",
     "unramShort": "UNRAM",
-    "officeName": "International Affairs Office",
-    "officeShort": "IAO UNRAM",
+    "officeName": "Office of International Affairs",
+    "officeShort": "OIA UNRAM",
     "skipToContent": "Skip to main content",
     "backToTop": "Back to top",
     "allRightsReserved": "All rights reserved."
@@ -32,7 +32,7 @@
     "badge": "UNRAM's Gateway to the World",
     "titlePrefix": "Unlocking Global Horizons from",
     "titleHighlight": "Lombok for an Interconnected Future",
-    "subtitle": "The International Affairs Office of Universitas Mataram connects students, faculty, and research consortia across continents from the tropical heart of West Nusa Tenggara.",
+    "subtitle": "The Office of International Affairs of Universitas Mataram connects students, faculty, and research consortia across continents from the tropical heart of West Nusa Tenggara.",
     "ctaStudy": "Study at UNRAM",
     "ctaPartner": "Partner With Us",
     "trustPill": "TODO: replace (00+ Global Partner Universities • Premier Accreditation)"
@@ -40,7 +40,7 @@
   "about": {
     "kicker": "About Our Office",
     "title": "Connecting UNRAM's Academic Community with the Global Stage",
-    "description1": "The International Affairs Office (IAO) at Universitas Mataram is the strategic executive arm operating under the Rector to cultivate, govern, and broaden international academic collaboration and cross-border mobility.",
+    "description1": "The Office of International Affairs (OIA) at Universitas Mataram is the strategic executive arm operating under the Rector to cultivate, govern, and broaden international academic collaboration and cross-border mobility.",
     "description2": "Nestled on the vibrant and ecologically rich island of Lombok, we are dedicated to providing safe, enriching, and globally competitive educational experiences for international scholars and domestic students alike.",
     "visionTitle": "Vision",
     "visionDesc": "TODO: replace (To emerge as an eminent, globally recognized, and trusted hub for higher education internationalization grounded in island and bioscience research by 2030).",
@@ -55,7 +55,7 @@
     "messageTitle": "Message from the Head of Office",
     "messageQuote": "TODO: replace (\"Welcome to Universitas Mataram. We warmly invite students, scholars, and institutional partners from every corner of the globe to explore, research, and thrive with us on the island of Lombok.\")",
     "messageAuthor": "TODO: replace (Head of Office Name, Ph.D)",
-    "messageRole": "Head of International Affairs Office",
+    "messageRole": "Head of Office of International Affairs",
     "messageOffice": "Universitas Mataram"
   },
   "services": {
@@ -155,14 +155,14 @@
         "category": "Inbound Students",
         "date": "TODO: replace (28 Oct 2026)",
         "title": "TODO: replace (Welcoming Orientation for International Students of Indonesian Language & Culture Program)",
-        "summary": "TODO: replace (IAO UNRAM delivered campus orientation, cultural adaptation briefings, and student welfare support for incoming international fellows)."
+        "summary": "TODO: replace (OIA UNRAM delivered campus orientation, cultural adaptation briefings, and student welfare support for incoming international fellows)."
       }
     ]
   },
   "admission": {
     "kicker": "Admission Pathway",
     "stage": "Phase",
-    "formatNote": "PDF • Official IAO UNRAM Format",
+    "formatNote": "PDF • Official OIA UNRAM Format",
     "title": "Steps to Join Universitas Mataram",
     "subtitle": "A step-by-step roadmap for prospective international students embarking on their academic journey in Lombok.",
     "steps": [
@@ -179,7 +179,7 @@
       {
         "step": "03",
         "title": "Submit Online Dossier",
-        "desc": "Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents."
+        "desc": "Complete the official OIA UNRAM online registration form and upload certified digital copies of all required documents."
       },
       {
         "step": "04",
@@ -201,7 +201,7 @@
       },
       {
         "q": "What is the procedure for obtaining a student visa and stay permit?",
-        "a": "TODO: replace (Once admitted, IAO UNRAM assists in obtaining the mandatory Study Permit from the Ministry of Higher Education. We then guide you through the electronic limited-stay visa (e-ITAS) process prior to landing at Lombok International Airport)."
+        "a": "TODO: replace (Once admitted, OIA UNRAM assists in obtaining the mandatory Study Permit from the Ministry of Higher Education. We then guide you through the electronic limited-stay visa (e-ITAS) process prior to landing at Lombok International Airport)."
       },
       {
         "q": "Is on-campus or student accommodation provided near the university?",
@@ -209,7 +209,7 @@
       },
       {
         "q": "How can UNRAM domestic students apply for outbound exchange programs like IISMA?",
-        "a": "TODO: replace (Enrolled UNRAM students can access eligibility guidelines on our portal, participate in preparation workshops, and request official institutional nomination letters from IAO UNRAM ahead of national deadlines)."
+        "a": "TODO: replace (Enrolled UNRAM students can access eligibility guidelines on our portal, participate in preparation workshops, and request official institutional nomination letters from OIA UNRAM ahead of national deadlines)."
       },
       {
         "q": "What is the primary language of instruction for international students?",
@@ -246,7 +246,7 @@
       "submitBtn": "Send Message",
       "sendingBtn": "Sending Message...",
       "successTitle": "Message Sent Successfully!",
-      "successDesc": "Thank you for contacting the International Affairs Office of UNRAM. We will respond to your email promptly.",
+      "successDesc": "Thank you for contacting the Office of International Affairs of UNRAM. We will respond to your email promptly.",
       "errorTitle": "Failed to Send Message",
       "errorDesc": "An error occurred while submitting your inquiry. Please try again or reach out to us directly via official email.",
       "sendAnother": "Send another inquiry"
@@ -275,6 +275,6 @@
     "unramAcademic": "Academic Information System (SIAKAD)",
     "emergencyTitle": "International Student Emergency Hotline",
     "emergencyDesc": "Round-the-clock support for enrolled international scholars requiring urgent medical or safety assistance in Lombok.",
-    "copyright": "© 2026 International Affairs Office, Universitas Mataram. All Rights Reserved."
+    "copyright": "© 2026 Office of International Affairs, Universitas Mataram. All Rights Reserved."
   }
 }

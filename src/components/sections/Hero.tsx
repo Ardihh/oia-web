@@ -112,7 +112,7 @@ export function Hero({ locale }: HeroProps) {
             <div className="relative aspect-[4/5] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100">
               <Image
                 src={bgImage}
-                alt={locale === 'en' ? 'Universitas Mataram International Affairs Office Campus' : 'Gedung Kantor Urusan Internasional Universitas Mataram'}
+                alt={locale === 'en' ? 'Universitas Mataram Office of International Affairs Campus' : 'Gedung Kantor Urusan Internasional Universitas Mataram'}
                 fill
                 priority
                 sizes="(min-width: 1024px) 40vw, 90vw"
@@ -121,7 +121,7 @@ export function Hero({ locale }: HeroProps) {
             </div>
             <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide">
               {locale === 'en'
-                ? 'Universitas Mataram Rectorate & International Affairs Office, Lombok'
+                ? 'Universitas Mataram Rectorate & Office of International Affairs, Lombok'
                 : 'Gedung Rektorat & Kantor Urusan Internasional Universitas Mataram, Lombok'}
             </p>
           </motion.div>

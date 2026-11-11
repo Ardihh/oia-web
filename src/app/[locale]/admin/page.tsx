@@ -1114,7 +1114,7 @@ export default function AdminPage() {
     const newFaq: FaqItem = {
       id: `faq-${Date.now()}`,
       q: { id: 'Pertanyaan baru seputar studi / visa?', en: 'New query regarding studies or visa?' },
-      a: { id: 'Jawaban penjelasan resmi dari Kantor Urusan Internasional UNRAM.', en: 'Official explanation from the International Affairs Office of UNRAM.' },
+      a: { id: 'Jawaban penjelasan resmi dari Kantor Urusan Internasional UNRAM.', en: 'Official explanation from the Office of International Affairs of UNRAM.' },
     };
     setSiteDraft({
       ...siteDraft,
@@ -1968,7 +1968,7 @@ export default function AdminPage() {
                       })
                     }
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
-                    placeholder="Deskripsi singkat tentang KUI/IAO UNRAM..."
+                    placeholder="Deskripsi singkat tentang KUI/OIA UNRAM..."
                   />
                 </div>
                 <div>
@@ -1985,7 +1985,7 @@ export default function AdminPage() {
                       })
                     }
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
-                    placeholder="Short description about IAO UNRAM..."
+                    placeholder="Short description about OIA UNRAM..."
                   />
                 </div>
               </div>
