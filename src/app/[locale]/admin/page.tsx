@@ -73,6 +73,7 @@ import {
 } from '@/lib/bundleZip';
 import { validateSiteContent, downloadRawBackup } from '@/lib/schemaValidator';
 import { isValidHttpsUrl, isValidGoogleMapsEmbedUrl } from '@/lib/domPurify';
+import { translateText } from '@/lib/newsUtils';
 
 // SHA-256 hash of default passcode 'unram2026'
 const DEFAULT_PASSCODE_HASH = '47d6a9d851060c7e5a5037a8dfad149fbe0698199058b22f140086eeced8193a';
@@ -115,23 +116,6 @@ function getTodayFormattedDate() {
     id: `${day} ${monthsId[now.getMonth()]} ${year}`,
     en: `${day} ${monthsEn[now.getMonth()]} ${year}`,
   };
-}
-
-// Free public translation helper
-async function translateText(text: string, from: 'id' | 'en', to: 'id' | 'en'): Promise<string> {
-  if (!text || !text.trim()) return '';
-  try {
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${from}|${to}`
-    );
-    const data = await res.json();
-    if (data.responseData?.translatedText) {
-      return data.responseData.translatedText;
-    }
-  } catch (e) {
-    console.error('Translation error:', e);
-  }
-  return text;
 }
 
 type TabType = 'news' | 'guides' | 'hero' | 'about' | 'stats' | 'services' | 'faq' | 'contact' | 'export';
@@ -201,7 +185,9 @@ export default function AdminPage() {
   // Check auth & load data on mount (with one-time localStorage to IndexedDB migration)
   useEffect(() => {
     setMounted(true);
-    const savedAuth = sessionStorage.getItem('unram_admin_auth');
+    const savedAuth =
+      sessionStorage.getItem('unram_admin_auth') ||
+      localStorage.getItem('unram_admin_auth');
     if (savedAuth === 'true') {
       setIsAuthenticated(true);
     }
@@ -321,7 +307,9 @@ export default function AdminPage() {
       if (computed === targetHash) {
         setIsAuthenticated(true);
         sessionStorage.setItem('unram_admin_auth', 'true');
+        localStorage.setItem('unram_admin_auth', 'true');
         setPasscodeError(false);
+        window.dispatchEvent(new Event('unram_content_changed'));
       } else {
         setPasscodeError(true);
       }
@@ -333,6 +321,8 @@ export default function AdminPage() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('unram_admin_auth');
+    localStorage.removeItem('unram_admin_auth');
+    window.dispatchEvent(new Event('unram_content_changed'));
   };
 
   // Save full site sections into IndexedDB
@@ -364,12 +354,12 @@ export default function AdminPage() {
       contact: {
         ...siteDraft.contact,
         addressContent: {
-          id: siteDraft.contact.addressContent.id,
-          en: siteDraft.contact.addressContent.en || siteDraft.contact.addressContent.id,
+          id: siteDraft.contact.addressContent?.id || siteDraft.contact.addressContent?.en || '',
+          en: siteDraft.contact.addressContent?.en || siteDraft.contact.addressContent?.id || '',
         },
         hoursValue: {
-          id: siteDraft.contact.hoursValue.id,
-          en: siteDraft.contact.hoursValue.en || siteDraft.contact.hoursValue.id,
+          id: siteDraft.contact.hoursValue?.id || siteDraft.contact.hoursValue?.en || '',
+          en: siteDraft.contact.hoursValue?.en || siteDraft.contact.hoursValue?.id || '',
         },
       },
     };
@@ -377,7 +367,9 @@ export default function AdminPage() {
     try {
       await saveDraftToDb(finalDraft);
       updateContent(finalDraft);
+      setSiteDraft(finalDraft);
       setHasUnexportedChanges(true);
+      await setMetadata('has_unexported_changes', true);
       setSaveSuccess(true);
       setStorageError(null);
       refreshStorage();
@@ -493,6 +485,231 @@ export default function AdminPage() {
           subtitle: { ...siteDraft.hero.subtitle, [targetLang]: s },
         },
       });
+      showToast(`Hero & Banner berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Auto translate About (Profil, Misi & Penerimaan)
+  const handleAutoTranslateAbout = async (sourceLang: 'id' | 'en') => {
+    const targetLang = sourceLang === 'id' ? 'en' : 'id';
+    setIsTranslating(true);
+    try {
+      const about = siteDraft.about || defaultSiteContent.about;
+      const [
+        d1,
+        d2,
+        vTitle,
+        vDesc,
+        mTitle,
+        msgTitle,
+        msgQuote,
+        msgAuthor,
+        msgRole,
+        msgOffice,
+      ] = await Promise.all([
+        translateText(about.description1?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.description2?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.visionTitle?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.visionDesc?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.missionTitle?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.messageTitle?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.messageQuote?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.messageAuthor?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.messageRole?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(about.messageOffice?.[sourceLang] || '', sourceLang, targetLang),
+      ]);
+
+      // Mission items array
+      const currentMissions = Array.isArray(about.missionItems?.[sourceLang])
+        ? about.missionItems[sourceLang]
+        : defaultSiteContent.about.missionItems[sourceLang];
+      const translatedMissions = await Promise.all(
+        currentMissions.map((item) => translateText(item, sourceLang, targetLang))
+      );
+
+      // Admission steps
+      const steps = Array.isArray(siteDraft.admissionSteps) && siteDraft.admissionSteps.length > 0
+        ? siteDraft.admissionSteps
+        : defaultSiteContent.admissionSteps || [];
+      const translatedSteps = await Promise.all(
+        steps.map(async (step) => {
+          const tSource = typeof step.title === 'object' ? (step.title[sourceLang] || step.title.id || step.title.en || '') : String(step.title);
+          const dSource = typeof step.desc === 'object' ? (step.desc[sourceLang] || step.desc.id || step.desc.en || '') : String(step.desc);
+          const [tTr, dTr] = await Promise.all([
+            translateText(tSource, sourceLang, targetLang),
+            translateText(dSource, sourceLang, targetLang),
+          ]);
+          return {
+            ...step,
+            title: {
+              ...(typeof step.title === 'object' ? step.title : { id: step.title, en: step.title }),
+              [targetLang]: tTr,
+            },
+            desc: {
+              ...(typeof step.desc === 'object' ? step.desc : { id: step.desc, en: step.desc }),
+              [targetLang]: dTr,
+            },
+          };
+        })
+      );
+
+      setSiteDraft({
+        ...siteDraft,
+        about: {
+          ...about,
+          description1: { ...about.description1, [targetLang]: d1 },
+          description2: { ...about.description2, [targetLang]: d2 },
+          visionTitle: { ...about.visionTitle, [targetLang]: vTitle },
+          visionDesc: { ...about.visionDesc, [targetLang]: vDesc },
+          missionTitle: { ...about.missionTitle, [targetLang]: mTitle },
+          missionItems: {
+            ...about.missionItems,
+            [targetLang]: translatedMissions,
+          },
+          messageTitle: { ...about.messageTitle, [targetLang]: msgTitle },
+          messageQuote: { ...about.messageQuote, [targetLang]: msgQuote },
+          messageAuthor: { ...about.messageAuthor, [targetLang]: msgAuthor },
+          messageRole: { ...about.messageRole, [targetLang]: msgRole },
+          messageOffice: { ...about.messageOffice, [targetLang]: msgOffice },
+        },
+        admissionSteps: translatedSteps,
+      });
+
+      showToast(`Profil & Misi berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } catch (err: any) {
+      alert(`Gagal menerjemahkan: ${err?.message || 'Error'}`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Auto translate Services
+  const handleAutoTranslateServices = async (sourceLang: 'id' | 'en') => {
+    const targetLang = sourceLang === 'id' ? 'en' : 'id';
+    setIsTranslating(true);
+    try {
+      const services = siteDraft.services || defaultSiteContent.services;
+      const [k, t, s] = await Promise.all([
+        translateText(services.kicker?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(services.title?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(services.subtitle?.[sourceLang] || '', sourceLang, targetLang),
+      ]);
+
+      const items = Array.isArray(services.items) ? services.items : defaultSiteContent.services.items;
+      const translatedItems = await Promise.all(
+        items.map(async (item) => {
+          const tSource = item.title?.[sourceLang] || item.title?.id || item.title?.en || '';
+          const dSource = item.desc?.[sourceLang] || item.desc?.id || item.desc?.en || '';
+          const [tTr, dTr] = await Promise.all([
+            translateText(tSource, sourceLang, targetLang),
+            translateText(dSource, sourceLang, targetLang),
+          ]);
+          return {
+            ...item,
+            title: { ...item.title, [targetLang]: tTr },
+            desc: { ...item.desc, [targetLang]: dTr },
+          };
+        })
+      );
+
+      setSiteDraft({
+        ...siteDraft,
+        services: {
+          kicker: { ...services.kicker, [targetLang]: k },
+          title: { ...services.title, [targetLang]: t },
+          subtitle: { ...services.subtitle, [targetLang]: s },
+          items: translatedItems,
+        },
+      });
+
+      showToast(`Layanan KUI berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } catch (err: any) {
+      alert(`Gagal menerjemahkan: ${err?.message || 'Error'}`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Auto translate FAQ
+  const handleAutoTranslateFaq = async (sourceLang: 'id' | 'en') => {
+    const targetLang = sourceLang === 'id' ? 'en' : 'id';
+    setIsTranslating(true);
+    try {
+      const faq = siteDraft.faq || defaultSiteContent.faq;
+      const [k, t, s] = await Promise.all([
+        translateText(faq.kicker?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(faq.title?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(faq.subtitle?.[sourceLang] || '', sourceLang, targetLang),
+      ]);
+
+      const items = Array.isArray(faq.items) ? faq.items : defaultSiteContent.faq.items;
+      const translatedItems = await Promise.all(
+        items.map(async (item) => {
+          const qSource = item.q?.[sourceLang] || item.q?.id || item.q?.en || '';
+          const aSource = item.a?.[sourceLang] || item.a?.id || item.a?.en || '';
+          const [qTr, aTr] = await Promise.all([
+            translateText(qSource, sourceLang, targetLang),
+            translateText(aSource, sourceLang, targetLang),
+          ]);
+          return {
+            ...item,
+            q: { ...item.q, [targetLang]: qTr },
+            a: { ...item.a, [targetLang]: aTr },
+          };
+        })
+      );
+
+      setSiteDraft({
+        ...siteDraft,
+        faq: {
+          kicker: { ...faq.kicker, [targetLang]: k },
+          title: { ...faq.title, [targetLang]: t },
+          subtitle: { ...faq.subtitle, [targetLang]: s },
+          items: translatedItems,
+        },
+      });
+
+      showToast(`Tanya Jawab (FAQ) berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } catch (err: any) {
+      alert(`Gagal menerjemahkan: ${err?.message || 'Error'}`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  // Auto translate Contact
+  const handleAutoTranslateContact = async (sourceLang: 'id' | 'en') => {
+    const targetLang = sourceLang === 'id' ? 'en' : 'id';
+    setIsTranslating(true);
+    try {
+      const addrSource = siteDraft.contact?.addressContent?.[sourceLang] || siteDraft.contact?.addressContent?.id || siteDraft.contact?.addressContent?.en || '';
+      const hoursSource = siteDraft.contact?.hoursValue?.[sourceLang] || siteDraft.contact?.hoursValue?.id || siteDraft.contact?.hoursValue?.en || '';
+
+      const [trAddr, trHours] = await Promise.all([
+        translateText(addrSource, sourceLang, targetLang),
+        translateText(hoursSource, sourceLang, targetLang),
+      ]);
+
+      setSiteDraft({
+        ...siteDraft,
+        contact: {
+          ...siteDraft.contact,
+          addressContent: {
+            ...siteDraft.contact.addressContent,
+            [targetLang]: trAddr,
+          },
+          hoursValue: {
+            ...siteDraft.contact.hoursValue,
+            [targetLang]: trHours,
+          },
+        },
+      });
+
+      showToast(`Kontak & Alamat berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } catch (err: any) {
+      alert(`Gagal menerjemahkan: ${err?.message || 'Error'}`);
     } finally {
       setIsTranslating(false);
     }
@@ -934,12 +1151,10 @@ export default function AdminPage() {
               <Lock className="w-7 h-7" aria-hidden="true" />
             </div>
             <h1 className="font-heading font-extrabold text-2xl text-slate-900">
-              {isEn ? 'KUI UNRAM Admin Portal' : 'Portal Admin KUI UNRAM'}
+              Portal Admin KUI UNRAM
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              {isEn
-                ? 'Dynamic Content Management with Auto-Translate'
-                : 'CMS Visual Dinamis dengan Terjemahan Otomatis'}
+              CMS Visual Dinamis dengan Terjemahan Otomatis
             </p>
           </div>
 
@@ -949,20 +1164,20 @@ export default function AdminPage() {
                 htmlFor="admin-passcode"
                 className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
               >
-                {isEn ? 'Passcode' : 'Kunci Akses / Passcode'}
+                Kunci Akses / Passcode
               </label>
               <input
                 id="admin-passcode"
                 type="password"
                 required
-                placeholder={isEn ? 'Enter passcode (default: unram2026)' : 'Masukkan kunci akses (default: unram2026)'}
+                placeholder="Masukkan kunci akses (default: unram2026)"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:border-unram-900 focus-visible:ring-2 focus-visible:ring-unram-900 transition-all"
               />
               {passcodeError && (
                 <p className="text-xs text-rose-600 font-semibold mt-1.5">
-                  {isEn ? 'Incorrect passcode. Try again.' : 'Kunci akses salah. Silakan coba lagi.'}
+                  Kunci akses salah. Silakan coba lagi.
                 </p>
               )}
             </div>
@@ -971,22 +1186,20 @@ export default function AdminPage() {
               type="submit"
               className="w-full py-3.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
             >
-              {isEn ? 'Enter Admin Dashboard' : 'Masuk ke Dashboard'}
+              Masuk ke Dashboard
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
             <p className="text-xs text-slate-400 text-center leading-relaxed">
-              {isEn
-                ? 'Convenience gate for static hosting. For university production servers, protect /admin via server Basic Auth or IP allowlist.'
-                : 'Gerbang kenyamanan untuk hosting statis. Pada server produksi universitas, lindungi direktori /admin dengan HTTP Basic Auth atau allowlist IP.'}
+              Gerbang kenyamanan untuk hosting statis. Pada server produksi universitas, lindungi direktori /admin dengan HTTP Basic Auth atau allowlist IP.
             </p>
             <a
               href={`/${locale}/`}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-unram-900 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>{isEn ? 'Back to Website' : 'Kembali ke Website'}</span>
+              <span>Kembali ke Website</span>
             </a>
           </div>
         </div>
@@ -996,15 +1209,15 @@ export default function AdminPage() {
 
   // ==================== DASHBOARD SCREEN ====================
   const navTabs = [
-    { key: 'news', label: isEn ? 'News Articles' : 'Berita & Kegiatan', icon: Tag },
-    { key: 'guides', label: isEn ? 'Guidebooks & Files' : 'Buku & File Panduan', icon: BookOpen },
-    { key: 'hero', label: isEn ? 'Hero & Banner' : 'Hero & Banner', icon: Sparkles },
-    { key: 'about', label: isEn ? 'About & Mission' : 'Profil & Misi', icon: User },
-    { key: 'stats', label: isEn ? 'Impact Stats' : 'Statistik Dampak', icon: BarChart3 },
-    { key: 'services', label: isEn ? 'Services' : 'Layanan KUI', icon: LayoutGrid },
-    { key: 'faq', label: isEn ? 'FAQ' : 'Tanya Jawab (FAQ)', icon: HelpCircle },
-    { key: 'contact', label: isEn ? 'Contact Info' : 'Kontak & Alamat', icon: Phone },
-    { key: 'export', label: isEn ? 'Publish Bundle & Backup' : 'Paket Publikasi & Cadangan', icon: Archive },
+    { key: 'news', label: 'Berita & Kegiatan', icon: Tag },
+    { key: 'guides', label: 'Buku & File Panduan', icon: BookOpen },
+    { key: 'hero', label: 'Hero & Banner', icon: Sparkles },
+    { key: 'about', label: 'Profil, Misi & Penerimaan', icon: User },
+    { key: 'stats', label: 'Statistik Dampak', icon: BarChart3 },
+    { key: 'services', label: 'Layanan KUI', icon: LayoutGrid },
+    { key: 'faq', label: 'Tanya Jawab (FAQ)', icon: HelpCircle },
+    { key: 'contact', label: 'Kontak & Alamat', icon: Phone },
+    { key: 'export', label: 'Paket Publikasi & Cadangan', icon: Archive },
   ];
 
   const isEditingArticleView = activeTab === 'news' && newsView === 'editor';
@@ -1020,7 +1233,7 @@ export default function AdminPage() {
             </div>
             <div>
               <h2 className="font-heading font-extrabold text-sm sm:text-base leading-tight text-white">
-                {isEn ? 'UNRAM International Office CMS' : 'Dashboard Konten KUI UNRAM'}
+                Dashboard Konten KUI UNRAM
               </h2>
               <p className="text-xs text-amber-300 font-semibold">
                 Universitas Mataram (Lombok, Indonesia)
@@ -1067,14 +1280,14 @@ export default function AdminPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition-colors"
             >
               <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">{isEn ? 'View Live Site' : 'Lihat Website'}</span>
+              <span className="hidden sm:inline">Lihat Website</span>
             </a>
             <button
               type="button"
               onClick={handleLogout}
               className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-xs font-bold text-white transition-colors"
             >
-              {isEn ? 'Logout' : 'Keluar'}
+              Keluar
             </button>
           </div>
         </Container>
@@ -1085,9 +1298,7 @@ export default function AdminPage() {
         <div className="bg-emerald-600 text-white py-2.5 px-4 text-center text-xs font-bold shadow-sm flex items-center justify-center gap-2 animate-in fade-in duration-200">
           <CheckCircle2 className="w-4 h-4" />
           <span>
-            {isEn
-              ? 'Changes saved! The live website is now updated with your latest content.'
-              : 'Perubahan berhasil disimpan! Website Anda kini menampilkan konten dan foto terbaru.'}
+            Perubahan berhasil disimpan! Website Anda kini menampilkan konten dan foto terbaru.
           </span>
         </div>
       )}
@@ -1167,14 +1378,12 @@ export default function AdminPage() {
                     <BookOpen className="w-5 h-5 text-unram-900" />
                     <span>
                       {isEditingGuide
-                        ? (isEn ? 'Edit Guidebook / File' : 'Edit Buku & File Panduan')
-                        : (isEn ? 'Add New Guidebook / File' : 'Tambah Buku & File Panduan Baru')}
+                        ? 'Edit Buku & File Panduan'
+                        : 'Tambah Buku & File Panduan Baru'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {isEn
-                      ? 'Upload handbooks, application forms, or guidelines shown in the Admission section.'
-                      : 'Kelola buku panduan mahasiswa asing, formulir pendaftaran, atau pedoman beasiswa yang tampil di section Penerimaan.'}
+                    Kelola buku panduan mahasiswa asing, formulir pendaftaran, atau pedoman beasiswa yang tampil di section Penerimaan.
                   </p>
                 </div>
 
@@ -1196,7 +1405,7 @@ export default function AdminPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
                   >
                     {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
-                    <span>⚡ Translate (EN &rarr; ID)</span>
+                    <span>⚡ Terjemahkan (EN &rarr; ID)</span>
                   </button>
                 </div>
               </div>
@@ -1344,7 +1553,7 @@ export default function AdminPage() {
                     />
                     <label className="w-full sm:w-auto flex-shrink-0 cursor-pointer inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider transition-colors">
                       <Upload className="w-4 h-4" />
-                      <span>{isEn ? 'Upload File' : 'Unggah File'}</span>
+                      <span>Unggah File</span>
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx"
@@ -1374,8 +1583,8 @@ export default function AdminPage() {
                     <Plus className="w-4 h-4" />
                     <span>
                       {isEditingGuide
-                        ? (isEn ? 'Save Guidebook' : 'Simpan Perubahan')
-                        : (isEn ? 'Publish Guidebook' : 'Terbitkan Panduan')}
+                        ? 'Simpan Perubahan'
+                        : 'Terbitkan Panduan'}
                     </span>
                   </button>
                   {isEditingGuide && (
@@ -1394,7 +1603,7 @@ export default function AdminPage() {
             {/* Guidebooks List */}
             <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card">
               <h3 className="font-heading font-bold text-xl text-slate-900 mb-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-                <span>{isEn ? 'Published Handbooks & Guidebooks' : 'Daftar Buku Panduan & Dokumen Aktif'}</span>
+                <span>Daftar Buku Panduan & Dokumen Aktif</span>
                 <span className="text-xs font-semibold text-slate-500">
                   Total: {((siteDraft.guides && siteDraft.guides.length) || defaultGuides.length)} file
                 </span>
@@ -1473,18 +1682,18 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="font-heading font-bold text-xl text-slate-900">
-                  {isEn ? 'Hero Section & Banner Photo' : 'Hero Section & Foto Banner Utama'}
+                  Hero Section & Foto Banner Utama
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Ganti teks judul, subjudul, dan foto latar kampus.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled={isTranslating}
                   onClick={() => handleAutoTranslateHero('id')}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
                   title="Terjemahkan teks Hero dari Indonesia ke Inggris"
                 >
                   {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
@@ -1492,11 +1701,21 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateHero('en')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan teks Hero dari Inggris ke Indonesia"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleSaveSections}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{isEn ? 'Save Changes' : 'Simpan Perubahan'}</span>
+                  <span>Simpan Perubahan</span>
                 </button>
               </div>
             </div>
@@ -1678,7 +1897,7 @@ export default function AdminPage() {
         {/* ==================== TAB 3: ABOUT & DYNAMIC MISSION ITEMS ==================== */}
         {activeTab === 'about' && (
           <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="font-heading font-bold text-xl text-slate-900">
                   Profil, Visi, Misi & Sambutan Kepala Kantor
@@ -1687,14 +1906,36 @@ export default function AdminPage() {
                   Kelola deskripsi, foto Kepala Kantor, dan tambah/kurang poin misi secara dinamis.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleSaveSections}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
-              >
-                <Save className="w-4 h-4" />
-                <span>Simpan Perubahan</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateAbout('id')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Profil, Visi & Misi dari Indonesia ke Inggris"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateAbout('en')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Profil, Visi & Misi dari Inggris ke Indonesia"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSections}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
             </div>
 
             {/* ── Deskripsi Kantor ── */}
@@ -2382,11 +2623,31 @@ export default function AdminPage() {
                   Anda bisa menambah kartu layanan baru atau menghapus layanan lama sesuai kebutuhan.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateServices('id')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Layanan dari Indonesia ke Inggris"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateServices('en')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Layanan dari Inggris ke Indonesia"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                </button>
                 <button
                   type="button"
                   onClick={addServiceItem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Layanan Baru</span>
@@ -2394,7 +2655,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={handleSaveSections}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
                 >
                   <Save className="w-4 h-4" />
                   <span>Simpan Perubahan</span>
@@ -2506,11 +2767,31 @@ export default function AdminPage() {
                   Kelola daftar accordion FAQ yang muncul di website utama.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateFaq('id')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Tanya Jawab dari Indonesia ke Inggris"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateFaq('en')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Tanya Jawab dari Inggris ke Indonesia"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                </button>
                 <button
                   type="button"
                   onClick={addFaqItem}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Pertanyaan Baru</span>
@@ -2518,7 +2799,7 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={handleSaveSections}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
                 >
                   <Save className="w-4 h-4" />
                   <span>Simpan Perubahan</span>
@@ -2604,7 +2885,7 @@ export default function AdminPage() {
         {/* ==================== TAB 7: CONTACT INFO ==================== */}
         {activeTab === 'contact' && (
           <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="font-heading font-bold text-xl text-slate-900">
                   Kontak Kantor, Alamat & Jam Operasional
@@ -2613,14 +2894,36 @@ export default function AdminPage() {
                   Ubah alamat, nomor WhatsApp, email resmi, dan tautan Google Maps.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleSaveSections}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md"
-              >
-                <Save className="w-4 h-4" />
-                <span>Simpan Perubahan</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateContact('id')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Alamat & Jam Kerja dari Indonesia ke Inggris"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
+                  <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={() => handleAutoTranslateContact('en')}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                  title="Terjemahkan Alamat & Jam Kerja dari Inggris ke Indonesia"
+                >
+                  {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSections}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -2639,8 +2942,8 @@ export default function AdminPage() {
                         contact: {
                           ...siteDraft.contact,
                           addressContent: {
+                            ...siteDraft.contact.addressContent,
                             id: val,
-                            en: siteDraft.contact.addressContent.en || val,
                           },
                         },
                       });
@@ -2719,8 +3022,8 @@ export default function AdminPage() {
                         contact: {
                           ...siteDraft.contact,
                           hoursValue: {
+                            ...siteDraft.contact.hoursValue,
                             id: val,
-                            en: siteDraft.contact.hoursValue.en || val,
                           },
                         },
                       });

@@ -582,7 +582,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     // 1. Check if admin is currently authenticated in this browser session
     const checkAdminAuth = () => {
       try {
-        return sessionStorage.getItem('unram_admin_auth') === 'true';
+        return (
+          sessionStorage.getItem('unram_admin_auth') === 'true' ||
+          localStorage.getItem('unram_admin_auth') === 'true'
+        );
       } catch {
         return false;
       }
@@ -640,12 +643,22 @@ export function ContentProvider({ children }: { children: ReactNode }) {
             setIsAdminPreview(true);
           }
         } catch {}
+      } else {
+        setIsAdminPreview(false);
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'unram_draft_timestamp' || e.key === 'unram_admin_auth') {
+        handleSync();
       }
     };
 
     window.addEventListener('unram_content_changed', handleSync);
+    window.addEventListener('storage', handleStorageChange);
     return () => {
       window.removeEventListener('unram_content_changed', handleSync);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -656,6 +669,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     });
 
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
+      } catch {}
       window.dispatchEvent(new Event('unram_content_changed'));
     }
   };
@@ -665,6 +681,9 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     saveDraftToDb(defaultSiteContent).catch(console.error);
 
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
+      } catch {}
       window.dispatchEvent(new Event('unram_content_changed'));
     }
   };

@@ -103,9 +103,9 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/80 backdrop-blur-sm overflow-hidden animate-in fade-in duration-150">
-      {/* Top Preview Controls Bar */}
-      <div className="h-14 px-4 bg-unram-950 text-white border-b border-unram-800 flex items-center justify-between gap-4 flex-shrink-0 z-20">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-sm animate-in fade-in duration-150">
+      {/* Top Preview Controls Bar (Sticky at top of preview overlay) */}
+      <div className="sticky top-0 z-30 h-14 px-4 bg-unram-950 text-white border-b border-unram-800 flex items-center justify-between gap-4 shadow-md">
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-xs font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 flex-shrink-0">
             Pratinjau Halaman Pembaca
@@ -178,10 +178,10 @@ export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalPro
         </button>
       </div>
 
-      {/* Preview Scrollable Canvas with overscroll containment */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 lg:p-8 flex justify-center items-start bg-slate-900/60">
+      {/* Preview Scrollable Canvas */}
+      <div className="p-3 sm:p-6 lg:p-8 min-h-[calc(100vh-3.5rem)] flex justify-center items-start">
         <div
-          className={`bg-paper rounded-lg shadow-2xl transition-all duration-300 flex flex-col border border-hairline/60 my-2 mb-16 ${
+          className={`bg-paper rounded-lg shadow-2xl transition-all duration-300 flex flex-col border border-hairline/60 my-2 mb-20 ${
             deviceMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-4xl'
           }`}
         >
