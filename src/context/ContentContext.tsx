@@ -46,13 +46,14 @@ export interface NewsArticle {
   id: string;
   category: { id: string; en: string };
   date: { id: string; en: string };
+  publishedAt?: string;
   title: { id: string; en: string };
   summary: { id: string; en: string };
   content?: { id: string; en: string };
   image: string;
   author?: string;
   status?: 'draft' | 'published';
-  slug?: { id: string; en: string } | string;
+  slug?: string;
   imageCaption?: { id: string; en: string } | string;
   imageCredit?: string;
   translationMeta?: {
@@ -212,6 +213,9 @@ export const defaultGuides: GuideItem[] = [
 export const defaultNews: NewsArticle[] = [
   {
     id: '1',
+    slug: 'unram-hosts-iisma-information-session-for-prestigious-overseas-universities',
+    publishedAt: '2026-11-10T00:00:00.000Z',
+    status: 'published',
     category: { id: 'Program Mobilitas', en: 'Mobility Program' },
     date: { id: '10 Nov 2026', en: '10 Nov 2026' },
     title: {
@@ -231,6 +235,9 @@ export const defaultNews: NewsArticle[] = [
   },
   {
     id: '2',
+    slug: 'signing-of-joint-marine-and-environmental-research-mou',
+    publishedAt: '2026-11-04T00:00:00.000Z',
+    status: 'published',
     category: { id: 'Kemitraan Global', en: 'Global Partnership' },
     date: { id: '04 Nov 2026', en: '04 Nov 2026' },
     title: {
@@ -250,6 +257,9 @@ export const defaultNews: NewsArticle[] = [
   },
   {
     id: '3',
+    slug: 'welcoming-orientation-for-international-students-bipa',
+    publishedAt: '2026-10-28T00:00:00.000Z',
+    status: 'published',
     category: { id: 'Inbound Students', en: 'Inbound Students' },
     date: { id: '28 Okt 2026', en: '28 Oct 2026' },
     title: {
