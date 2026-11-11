@@ -21,7 +21,7 @@ interface ArticlePreviewModalProps {
 }
 
 export function ArticlePreviewModal({ article, onClose }: ArticlePreviewModalProps) {
-  const [previewLang, setPreviewLang] = useState<'id' | 'en'>('id');
+  const [previewLang, setPreviewLang] = useState<'id' | 'en'>('en');
   const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
 
   // Localized field extractors

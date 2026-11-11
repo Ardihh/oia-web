@@ -24,6 +24,44 @@ export async function translateText(
 }
 
 /**
+ * Translate HTML content by translating inner text of block elements
+ * (p, h2, h3, li, blockquote) while preserving structure and formatting
+ */
+export async function translateHtml(
+  html: string,
+  from: 'id' | 'en',
+  to: 'id' | 'en'
+): Promise<string> {
+  if (!html || !html.trim() || html === '<p></p>') return '<p></p>';
+
+  const normalizedHtml = isHtmlContent(html) ? html : plainTextToHtml(html);
+  const blockRegex = /<((?:p|h2|h3|h4|li|blockquote)(?:\s+[^>]*)?)>([\s\S]*?)<\/\1>/gi;
+  const matches: { full: string; tag: string; inner: string }[] = [];
+  let m;
+  while ((m = blockRegex.exec(normalizedHtml)) !== null) {
+    matches.push({ full: m[0], tag: m[1], inner: m[2] });
+  }
+
+  if (matches.length === 0) {
+    const rawText = normalizedHtml.replace(/<[^>]*>/g, ' ').trim();
+    if (!rawText) return '<p></p>';
+    const translated = await translateText(rawText, from, to);
+    return `<p>${translated}</p>`;
+  }
+
+  const translatedBlocks = await Promise.all(
+    matches.map(async (block) => {
+      const cleanInnerText = block.inner.replace(/<[^>]*>/g, '').trim();
+      if (!cleanInnerText) return block.full;
+      const translatedInner = await translateText(cleanInnerText, from, to);
+      return `<${block.tag}>${translatedInner}</${block.tag}>`;
+    })
+  );
+
+  return translatedBlocks.join('');
+}
+
+/**
  * Generate a clean URL-friendly slug from title
  */
 export function slugify(text: string): string {

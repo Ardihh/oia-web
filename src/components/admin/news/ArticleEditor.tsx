@@ -27,6 +27,7 @@ import { NewsArticle } from '@/context/ContentContext';
 import { TiptapEditor } from './TiptapEditor';
 import {
   translateText,
+  translateHtml,
   slugify,
   calcReadingTime,
   getTodayFormatted,
@@ -48,8 +49,8 @@ export function ArticleEditor({
   onSave,
   onPreview,
 }: ArticleEditorProps) {
-  // Current editing language tab
-  const [editorLang, setEditorLang] = useState<'id' | 'en'>('id');
+  // Current editing language tab (English is primary authoring language)
+  const [editorLang, setEditorLang] = useState<'id' | 'en'>('en');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Article state
@@ -148,15 +149,62 @@ export function ArticleEditor({
   }, [article]);
 
   // Handle manual save
-  const handleManualSave = (isPublish: boolean) => {
+  const handleManualSave = async (isPublish: boolean) => {
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     setIsSaving(true);
 
-    const updated = {
+    let updated = {
       ...article,
       status: isPublish ? ('published' as const) : ('draft' as const),
     };
+
+    // Auto-generate Indonesian translation from English if missing or empty
+    if (updated.title?.en?.trim()) {
+      const needsId =
+        !updated.title?.id?.trim() ||
+        !updated.summary?.id?.trim() ||
+        !updated.content?.id ||
+        updated.content.id === '<p></p>';
+
+      if (needsId) {
+        try {
+          const [trTitle, trSummary, trContent] = await Promise.all([
+            updated.title?.id?.trim()
+              ? Promise.resolve(updated.title.id)
+              : translateText(updated.title.en, 'en', 'id'),
+            updated.summary?.id?.trim()
+              ? Promise.resolve(updated.summary.id)
+              : (updated.summary?.en ? translateText(updated.summary.en, 'en', 'id') : Promise.resolve('')),
+            (updated.content?.id && updated.content.id !== '<p></p>')
+              ? Promise.resolve(updated.content.id)
+              : (updated.content?.en ? translateHtml(updated.content.en, 'en', 'id') : Promise.resolve('<p></p>')),
+          ]);
+
+          updated = {
+            ...updated,
+            title: {
+              id: updated.title?.id?.trim() || trTitle || updated.title.en,
+              en: updated.title.en,
+            },
+            summary: {
+              id: updated.summary?.id?.trim() || trSummary || updated.summary?.en || '',
+              en: updated.summary?.en || '',
+            },
+            content: {
+              id: (updated.content?.id && updated.content.id !== '<p></p>')
+                ? updated.content.id
+                : (trContent || updated.content?.en || '<p></p>'),
+              en: updated.content?.en || '<p></p>',
+            },
+          };
+        } catch (e) {
+          console.error('Auto translation on save error:', e);
+        }
+      }
+    }
+
     setArticle(updated);
+    articleRef.current = updated;
     onSave(updated, isPublish);
 
     const now = new Date();
@@ -169,7 +217,7 @@ export function ArticleEditor({
     showToast(
       isPublish
         ? 'Artikel berhasil diterbitkan ke situs publik!'
-        : 'Draf artikel berhasil disimpan!'
+        : 'Draf artikel berhasil disimpan (Terjemahan ID otomatis disinkronkan)!'
     );
   };
 
@@ -205,7 +253,7 @@ export function ArticleEditor({
       const [trTitle, trSummary, trContent] = await Promise.all([
         titleSrc ? translateText(titleSrc, sourceLang, targetLang) : Promise.resolve(''),
         summarySrc ? translateText(summarySrc, sourceLang, targetLang) : Promise.resolve(''),
-        contentSrc ? translateText(contentSrc, sourceLang, targetLang) : Promise.resolve(''),
+        contentSrc ? translateHtml(contentSrc, sourceLang, targetLang) : Promise.resolve('<p></p>'),
       ]);
 
       updateArticle({
@@ -218,7 +266,7 @@ export function ArticleEditor({
       });
 
       showToast(
-        `Terjemahan ke ${targetLang === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'} berhasil diisi sebagai draf!`
+        `Terjemahan ke ${targetLang === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'} berhasil diperbarui!`
       );
     } catch (e) {
       console.error(e);
@@ -245,7 +293,7 @@ export function ArticleEditor({
         updateArticle({ summary: { ...article.summary, [targetLang]: res } });
       } else if (field === 'content') {
         const text = article.content?.[sourceLang] || '';
-        const res = await translateText(text, sourceLang, targetLang);
+        const res = await translateHtml(text, sourceLang, targetLang);
         updateArticle({
           content: {
             id: targetLang === 'id' ? res : (article.content?.id || ''),
@@ -253,7 +301,7 @@ export function ArticleEditor({
           },
         });
       }
-      showToast(`Bagian ${field} berhasil diterjemahkan ulang.`);
+      showToast(`Bagian ${field} berhasil diterjemahkan.`);
     } catch (e) {
       console.error(e);
       showToast('Gagal menerjemahkan bagian ini.', 'error');
@@ -299,10 +347,10 @@ export function ArticleEditor({
   const hasEnContent = Boolean(article.title?.en?.trim() && article.summary?.en?.trim());
 
   const isPublishReady = Boolean(
-    article.title?.id?.trim() &&
-    article.summary?.id?.trim() &&
-    article.content?.id?.trim() &&
-    article.content?.id !== '<p></p>'
+    (article.title?.en?.trim() || article.title?.id?.trim()) &&
+    (article.summary?.en?.trim() || article.summary?.id?.trim()) &&
+    ((article.content?.en && article.content.en !== '<p></p>') ||
+      (article.content?.id && article.content.id !== '<p></p>'))
   );
 
   return (
@@ -373,31 +421,14 @@ export function ArticleEditor({
           </div>
         </div>
 
-        {/* Center: Language Tabs */}
+        {/* Center: Language Tabs (English First + Auto Indonesian) */}
         <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/60 text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setEditorLang('id')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
-              editorLang === 'id'
-                ? 'bg-white text-unram-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                hasIdContent ? 'bg-emerald-500' : 'bg-slate-300'
-              }`}
-            />
-            <span>Indonesia</span>
-          </button>
-
           <button
             type="button"
             onClick={() => setEditorLang('en')}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
               editorLang === 'en'
-                ? 'bg-white text-unram-900 shadow-xs'
+                ? 'bg-white text-unram-900 shadow-xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -406,7 +437,24 @@ export function ArticleEditor({
                 hasEnContent ? 'bg-emerald-500' : 'bg-amber-400'
               }`}
             />
-            <span>English</span>
+            <span>English (Utama)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setEditorLang('id')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+              editorLang === 'id'
+                ? 'bg-white text-unram-900 shadow-xs font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                hasIdContent ? 'bg-emerald-500' : 'bg-slate-300'
+              }`}
+            />
+            <span>Indonesia (Otomatis)</span>
           </button>
         </div>
 
@@ -462,64 +510,43 @@ export function ArticleEditor({
         {/* Centered Writing Column */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-white">
           <div className="max-w-[720px] mx-auto space-y-8">
-            {/* Translation Assistance Banner */}
-            {editorLang === 'en' && !hasEnContent && (
-              <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200">
-                <div className="flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-xs font-bold text-amber-900">
-                      Versi Bahasa Inggris Belum Terisi
-                    </h4>
-                    <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
-                      Anda dapat otomatis mengisi judul, ringkasan, dan isi berita dari draf Bahasa Indonesia.
-                    </p>
+            {/* English-First Mode Notice */}
+            {editorLang === 'en' && (
+              <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200/70 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-unram-700 flex-shrink-0" />
+                  <div className="text-[12px] text-slate-700">
+                    <span className="font-bold text-unram-950">Mode Penulisan Bahasa Inggris:</span> Cukup tulis naskah sekali dalam Bahasa Inggris. Versi Bahasa Indonesia akan otomatis diterjemahkan &amp; di-generate saat artikel disimpan atau diterbitkan.
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={isTranslating}
-                  onClick={handleTranslateAll}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs transition-colors disabled:opacity-50 flex-shrink-0 self-end sm:self-auto"
-                >
-                  {isTranslating ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="w-3.5 h-3.5" />
-                  )}
-                  <span>Terjemahkan dari ID</span>
-                </button>
               </div>
             )}
 
-            {editorLang === 'id' && !hasIdContent && hasEnContent && (
-              <div className="p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200">
-                <div className="flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-xs font-bold text-indigo-900">
-                      Versi Bahasa Indonesia Masih Kosong
-                    </h4>
-                    <p className="text-[11px] text-indigo-700 mt-0.5 leading-relaxed">
-                      Terjemahkan otomatis dari konten Bahasa Inggris yang sudah Anda buat.
-                    </p>
+            {/* Indonesian Preview Notice */}
+            {editorLang === 'id' && (
+              <div className="p-3.5 rounded-xl bg-emerald-50/90 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                  <div className="text-[12px] text-emerald-950">
+                    <span className="font-bold">Pratinjau Terjemahan Bahasa Indonesia:</span> Naskah ini dihasilkan secara otomatis dari naskah Bahasa Inggris Anda. Anda dapat menyesuaikannya secara manual jika diperlukan.
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={isTranslating}
-                  onClick={handleTranslateAll}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs transition-colors disabled:opacity-50 flex-shrink-0 self-end sm:self-auto"
-                >
-                  {isTranslating ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="w-3.5 h-3.5" />
-                  )}
-                  <span>Terjemahkan dari EN</span>
-                </button>
+                {hasEnContent && (
+                  <button
+                    type="button"
+                    disabled={isTranslating}
+                    onClick={() => executeFullTranslation('en', 'id')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors disabled:opacity-50 flex-shrink-0 self-end sm:self-auto shadow-xs"
+                  >
+                    {isTranslating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    )}
+                    <span>Sinkronkan Ulang dari English</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -582,30 +609,30 @@ export function ArticleEditor({
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Judul Berita ({editorLang === 'id' ? 'Bahasa Indonesia' : 'English'})
+                  Judul Berita ({editorLang === 'en' ? 'English (Utama)' : 'Bahasa Indonesia (Otomatis)'})
                 </span>
-                {editorLang === 'en' && article.title?.id && (
+                {editorLang === 'id' && article.title?.en && (
                   <button
                     type="button"
                     disabled={translatingField === 'title'}
-                    onClick={() => handleTranslateSingleField('title', 'id', 'en')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-unram-600 hover:text-unram-800 disabled:opacity-50"
+                    onClick={() => handleTranslateSingleField('title', 'en', 'id')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
                   >
                     {translatingField === 'title' ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <RefreshCw className="w-3 h-3" />
                     )}
-                    <span>Terjemahkan ulang judul</span>
+                    <span>Sinkronkan judul dari English</span>
                   </button>
                 )}
               </div>
               <textarea
                 rows={2}
                 placeholder={
-                  editorLang === 'id'
-                    ? 'Tulis judul berita di sini...'
-                    : 'Write article headline in English...'
+                  editorLang === 'en'
+                    ? 'Write article headline in English...'
+                    : 'Judul berita Bahasa Indonesia (otomatis terisi saat disimpan)...'
                 }
                 value={currentTitle}
                 onChange={(e) => {
@@ -613,7 +640,7 @@ export function ArticleEditor({
                   const newTitle = { ...article.title, [editorLang]: val };
                   updateArticle({
                     title: newTitle,
-                    slug: editorLang === 'id' ? slugify(val) : article.slug,
+                    slug: editorLang === 'en' ? slugify(val) : (article.slug || slugify(val)),
                   });
                 }}
                 className="w-full font-serif text-3xl sm:text-4xl text-slate-900 placeholder:text-slate-300 font-normal leading-tight focus:outline-none border-b border-transparent focus:border-slate-200 resize-none transition-colors"
@@ -624,24 +651,41 @@ export function ArticleEditor({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-bold uppercase tracking-wider text-slate-400">
-                  Ringkasan / Paragraf Pembuka ({editorLang.toUpperCase()})
+                  Ringkasan / Paragraf Pembuka ({editorLang === 'en' ? 'ENGLISH (UTAMA)' : 'INDONESIA (OTOMATIS)'})
                 </span>
-                <span
-                  className={`font-mono ${
-                    currentSummary.length > 200
-                      ? 'text-amber-600 font-bold'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  {currentSummary.length}/160 karakter
-                </span>
+                <div className="flex items-center gap-3">
+                  {editorLang === 'id' && article.summary?.en && (
+                    <button
+                      type="button"
+                      disabled={translatingField === 'summary'}
+                      onClick={() => handleTranslateSingleField('summary', 'en', 'id')}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
+                    >
+                      {translatingField === 'summary' ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3" />
+                      )}
+                      <span>Sinkronkan dari English</span>
+                    </button>
+                  )}
+                  <span
+                    className={`font-mono ${
+                      currentSummary.length > 200
+                        ? 'text-amber-600 font-bold'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    {currentSummary.length}/160 karakter
+                  </span>
+                </div>
               </div>
               <textarea
                 rows={3}
                 placeholder={
-                  editorLang === 'id'
-                    ? 'Tulis ringkasan singkat artikel berita (disarankan ~160 karakter)...'
-                    : 'Write a concise summary of the article (recommended ~160 characters)...'
+                  editorLang === 'en'
+                    ? 'Write a concise lead summary in English (recommended ~160 characters)...'
+                    : 'Ringkasan berita Bahasa Indonesia (otomatis terisi saat disimpan)...'
                 }
                 value={currentSummary}
                 onChange={(e) => {
@@ -661,21 +705,21 @@ export function ArticleEditor({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Isi Lengkap Berita ({editorLang.toUpperCase()})
+                  Isi Lengkap Berita ({editorLang === 'en' ? 'ENGLISH (UTAMA)' : 'INDONESIA (OTOMATIS)'})
                 </span>
-                {editorLang === 'en' && article.content?.id && (
+                {editorLang === 'id' && article.content?.en && article.content.en !== '<p></p>' && (
                   <button
                     type="button"
                     disabled={translatingField === 'content'}
-                    onClick={() => handleTranslateSingleField('content', 'id', 'en')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-unram-600 hover:text-unram-800 disabled:opacity-50"
+                    onClick={() => handleTranslateSingleField('content', 'en', 'id')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
                   >
                     {translatingField === 'content' ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <RefreshCw className="w-3 h-3" />
                     )}
-                    <span>Terjemahkan ulang bodi</span>
+                    <span>Sinkronkan bodi dari English</span>
                   </button>
                 )}
               </div>
@@ -683,9 +727,9 @@ export function ArticleEditor({
               <TiptapEditor
                 content={currentContent}
                 placeholder={
-                  editorLang === 'id'
-                    ? 'Mulai ketik isi berita atau dokumentasi kegiatan di sini...'
-                    : 'Start writing article body in English here...'
+                  editorLang === 'en'
+                    ? 'Start writing article narrative in English here (use headings, quotes, lists, bold)...'
+                    : 'Isi lengkap berita dalam Bahasa Indonesia (otomatis terisi saat disimpan)...'
                 }
                 onChange={(html) => {
                   updateArticle({
@@ -849,24 +893,24 @@ export function ArticleEditor({
 
               <div className="space-y-2 text-xs">
                 <div className="flex items-center gap-2">
-                  {article.title?.id?.trim() ? (
+                  {article.title?.en?.trim() ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   ) : (
                     <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
                   )}
-                  <span className={article.title?.id?.trim() ? 'text-slate-800' : 'text-slate-400'}>
-                    Judul Bahasa Indonesia terisi
+                  <span className={article.title?.en?.trim() ? 'text-slate-800 font-medium' : 'text-slate-400'}>
+                    Judul Bahasa Inggris terisi
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {article.summary?.id?.trim() ? (
+                  {article.summary?.en?.trim() ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   ) : (
                     <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
                   )}
-                  <span className={article.summary?.id?.trim() ? 'text-slate-800' : 'text-slate-400'}>
-                    Ringkasan pembuka terisi
+                  <span className={article.summary?.en?.trim() ? 'text-slate-800 font-medium' : 'text-slate-400'}>
+                    Ringkasan Bahasa Inggris terisi
                   </span>
                 </div>
 
@@ -876,36 +920,32 @@ export function ArticleEditor({
                   ) : (
                     <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
                   )}
-                  <span className={article.image ? 'text-slate-800' : 'text-slate-400'}>
+                  <span className={article.image ? 'text-slate-800 font-medium' : 'text-slate-400'}>
                     Foto sampul terpasang
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {article.content?.id && article.content.id !== '<p></p>' ? (
+                  {article.content?.en && article.content.en !== '<p></p>' ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   ) : (
                     <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
                   )}
                   <span
                     className={
-                      article.content?.id && article.content.id !== '<p></p>'
-                        ? 'text-slate-800'
+                      article.content?.en && article.content.en !== '<p></p>'
+                        ? 'text-slate-800 font-medium'
                         : 'text-slate-400'
                     }
                   >
-                    Isi berita telah ditulis
+                    Naskah Bahasa Inggris telah ditulis
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                  {hasEnContent ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  )}
-                  <span className={hasEnContent ? 'text-slate-800' : 'text-amber-700'}>
-                    {hasEnContent ? 'Versi Bahasa Inggris lengkap' : 'Versi Inggris belum lengkap (opsional)'}
+                <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span className="text-emerald-700 font-medium text-[11px]">
+                    Terjemahan ID: Otomatis saat Simpan / Terbit
                   </span>
                 </div>
               </div>

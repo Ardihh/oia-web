@@ -291,28 +291,22 @@ export function ArticleListView({
                       <span className="flex items-center gap-1 text-slate-500">
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            isIdOk ? 'bg-emerald-500' : 'bg-slate-300'
+                            isEnOk ? 'bg-emerald-500' : 'bg-amber-400'
                           }`}
                         />
-                        <span className={isIdOk ? 'font-semibold text-slate-700' : 'text-slate-400'}>
-                          ID {isIdOk ? '✓' : '-'}
+                        <span className={isEnOk ? 'font-semibold text-slate-700' : 'text-amber-700'}>
+                          EN (Utama) {isEnOk ? '✓' : '-'}
                         </span>
                       </span>
 
                       <span className="flex items-center gap-1 text-slate-500">
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            isEnOk ? 'bg-emerald-500' : 'bg-amber-400'
+                            isIdOk ? 'bg-emerald-500' : 'bg-slate-300'
                           }`}
                         />
-                        <span
-                          className={
-                            isEnOk
-                              ? 'font-semibold text-slate-700'
-                              : 'text-amber-700 font-medium'
-                          }
-                        >
-                          EN {isEnOk ? '✓' : '(belum ada)'}
+                        <span className={isIdOk ? 'font-semibold text-slate-700' : 'text-slate-400'}>
+                          ID (Otomatis) {isIdOk ? '✓' : 'akan dibuat'}
                         </span>
                       </span>
                     </div>

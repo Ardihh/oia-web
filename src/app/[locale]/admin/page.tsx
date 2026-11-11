@@ -340,14 +340,16 @@ export default function AdminPage() {
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
 
-    showToast(
-      isPublish
-        ? (isEn ? 'Article published successfully!' : 'Berita berhasil diterbitkan!')
-        : (isEn ? 'Draft saved successfully!' : 'Draf berita berhasil disimpan!')
-    );
-
-    setNewsView('list');
-    setEditingArticle(null);
+    if (isPublish) {
+      showToast(
+        isEn ? 'Article published successfully!' : 'Berita berhasil diterbitkan!'
+      );
+      setNewsView('list');
+      setEditingArticle(null);
+    } else {
+      // Draft / autosave: keep editor open and active
+      setEditingArticle(article);
+    }
   };
 
   const handleDeleteNewsArticle = (id: string) => {
