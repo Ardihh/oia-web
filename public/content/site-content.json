@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-10T00:00:00.000Z",
+  "updatedAt": "2026-11-11T06:43:12.126Z",
   "hero": {
     "badge": {
       "id": "Pintu Gerbang Internasionalisasi UNRAM",
@@ -30,54 +30,8 @@
       "id": "TODO: replace (00+ Mitra Universitas Dunia • Akreditasi Unggul)",
       "en": "TODO: replace (00+ Global Partner Universities • Premier Accreditation)"
     },
-    "bgImage": "/images/hero-campus.jpg"
+    "bgImage": "/uploads/0933c04122b18d8f.webp"
   },
-  "admissionSteps": [
-    {
-      "id": "step-1",
-      "title": {
-        "id": "Pilih Program Studi",
-        "en": "Explore Study Programs"
-      },
-      "desc": {
-        "id": "Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM.",
-        "en": "Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM."
-      }
-    },
-    {
-      "id": "step-2",
-      "title": {
-        "id": "Persiapan Dokumen",
-        "en": "Prepare Requirements"
-      },
-      "desc": {
-        "id": "Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi.",
-        "en": "Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation."
-      }
-    },
-    {
-      "id": "step-3",
-      "title": {
-        "id": "Pengajuan Berkas Online",
-        "en": "Submit Online Dossier"
-      },
-      "desc": {
-        "id": "Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.",
-        "en": "Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents."
-      }
-    },
-    {
-      "id": "step-4",
-      "title": {
-        "id": "Izin Belajar & Kedatangan",
-        "en": "Study Permit & Arrival"
-      },
-      "desc": {
-        "id": "Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).",
-        "en": "After the Letter of Acceptance (LoA) is issued, the IAO team assists with the Ministry of Education study permit and e-Visa (KITAS)."
-      }
-    }
-  ],
   "about": {
     "kicker": {
       "id": "Tentang Kami",
@@ -130,8 +84,8 @@
       "en": "Our gateway is widely open to global scholars, students, and research consortia wishing to collaborate and innovate in Lombok."
     },
     "messageAuthor": {
-      "id": "TODO: replace (Nama Kepala Kantor, Ph.D.)",
-      "en": "TODO: replace (Head of Office Name, Ph.D.)"
+      "id": "I Wayan Agus Arimbawa S.T., M.T., Ph.D.",
+      "en": "I Wayan Agus Arimbawa S.T., M.T., Ph.D."
     },
     "messageRole": {
       "id": "Kepala Kantor Urusan Internasional",
@@ -141,8 +95,54 @@
       "id": "Universitas Mataram",
       "en": "Universitas Mataram"
     },
-    "headPhoto": "/images/head-of-office.jpg"
+    "headPhoto": "/uploads/96624a419137bc56.webp"
   },
+  "admissionSteps": [
+    {
+      "id": "step-1",
+      "title": {
+        "id": "Pilih Program Studi",
+        "en": "Explore Study Programs"
+      },
+      "desc": {
+        "id": "Telusuri katalog program studi sarjana, pascasarjana, atau kursus singkat kebudayaan yang tersedia di UNRAM.",
+        "en": "Browse undergraduate, postgraduate, or Indonesian language and culture immersion offerings at UNRAM."
+      }
+    },
+    {
+      "id": "step-2",
+      "title": {
+        "id": "Persiapan Dokumen",
+        "en": "Prepare Requirements"
+      },
+      "desc": {
+        "id": "Siapkan transkrip nilai, sertifikat kemampuan bahasa Inggris/Indonesia, paspor berlaku minimal 24 bulan, dan surat rekomendasi.",
+        "en": "Gather academic transcripts, English/Indonesian proficiency tests, a valid passport (min. 24 months), and letters of recommendation."
+      }
+    },
+    {
+      "id": "step-3",
+      "title": {
+        "id": "Pengajuan Berkas Online",
+        "en": "Submit Online Dossier"
+      },
+      "desc": {
+        "id": "Kirimkan formulir pendaftaran dan kelengkapan dokumen melalui portal pendaftaran resmi KUI UNRAM.",
+        "en": "Complete the official IAO UNRAM online registration form and upload certified digital copies of all required documents."
+      }
+    },
+    {
+      "id": "step-4",
+      "title": {
+        "id": "Izin Belajar & Kedatangan",
+        "en": "Study Permit & Arrival"
+      },
+      "desc": {
+        "id": "Setelah Letter of Acceptance (LoA) terbit, tim KUI membantu penerbitan izin belajar Kemendikbudristek dan e-Visa (KITAS).",
+        "en": "After the Letter of Acceptance (LoA) is issued, the IAO team assists with the Ministry of Education study permit and e-Visa (KITAS)."
+      }
+    }
+  ],
   "stats": {
     "kicker": {
       "id": "Capaian & Dampak",
@@ -173,7 +173,7 @@
       {
         "id": "countries",
         "value": "18",
-        "suffix": "",
+        "suffix": "+",
         "label": {
           "id": "Negara Asal Kolaborasi",
           "en": "Countries Represented"
@@ -199,7 +199,7 @@
       {
         "id": "programs",
         "value": "14",
-        "suffix": "",
+        "suffix": "+",
         "label": {
           "id": "Program Internasional Aktif",
           "en": "Active Global Programs"
@@ -386,7 +386,7 @@
       "id": "Gedung Rektorat UNRAM Lantai 1, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
       "en": "UNRAM Rectorate Building, 1st Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia"
     },
-    "emailValue": "io@unram.ac.id",
+    "emailValue": "oia@unram.ac.id",
     "phoneValue": "+62 (370) 633007",
     "hoursValue": {
       "id": "Senin - Jumat: 08.00 - 16.00 WITA (GMT+8)",
