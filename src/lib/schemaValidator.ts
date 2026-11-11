@@ -136,7 +136,17 @@ export function validateSiteContent(data: any): ValidationResult {
       ...defaultSiteContent.contact,
       ...(data.contact || {}),
     },
-    guides: Array.isArray(data.guides) ? data.guides : defaultSiteContent.guides,
+    guides: Array.isArray(data.guides)
+      ? data.guides.map((g: any) => ({
+          ...g,
+          fileUrl:
+            typeof g.fileUrl === 'string' &&
+            (g.fileUrl.startsWith('https://io.unram.ac.id') ||
+              g.fileUrl.startsWith('http://io.unram.ac.id'))
+              ? ''
+              : g.fileUrl || '',
+        }))
+      : defaultSiteContent.guides,
     news: Array.isArray(data.news) ? data.news : defaultSiteContent.news,
     partners: data.partners && typeof data.partners === 'object'
       ? {
