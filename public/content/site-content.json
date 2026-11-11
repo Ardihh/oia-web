@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-11T08:11:57.697Z",
+  "updatedAt": "2026-11-11T08:28:15.744Z",
   "hero": {
     "badge": {
       "id": "Pintu Gerbang Internasionalisasi UNRAM",
@@ -30,7 +30,7 @@
       "id": "TODO: replace (00+ Mitra Universitas Dunia • Akreditasi Unggul)",
       "en": "TODO: replace (00+ Global Partner Universities • Premier Accreditation)"
     },
-    "bgImage": "/images/hero-campus.jpg"
+    "bgImage": "/uploads/58d41c393dfd3102.webp"
   },
   "admissionSteps": [
     {
@@ -130,8 +130,8 @@
       "en": "Our gateway is widely open to global scholars, students, and research consortia wishing to collaborate and innovate in Lombok."
     },
     "messageAuthor": {
-      "id": "TODO: replace (Nama Kepala Kantor, Ph.D.)",
-      "en": "TODO: replace (Head of Office Name, Ph.D.)"
+      "id": "I Wayan Agus Arimbawa S.T., M.Eng., Ph.D",
+      "en": "I Wayan Agus Arimbawa S.T., M.Eng., Ph.D"
     },
     "messageRole": {
       "id": "Kepala Kantor Urusan Internasional",
@@ -141,7 +141,7 @@
       "id": "Universitas Mataram",
       "en": "Universitas Mataram"
     },
-    "headPhoto": "/images/head-of-office.jpg"
+    "headPhoto": "/uploads/b58ba35caa7e0fc2.webp"
   },
   "stats": {
     "kicker": {
@@ -383,8 +383,8 @@
   },
   "contact": {
     "addressContent": {
-      "id": "Gedung Rektorat UNRAM Lantai 2, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
-      "en": "UNRAM Rectorate Building, 2nd Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia"
+      "id": "Gedung Rektorat UNRAM Lantai 1, Jl. Majapahit No. 62, Mataram, Nusa Tenggara Barat 83125, Indonesia",
+      "en": "UNRAM Rectorate Building, 1st Floor, Jl. Majapahit No. 62, Mataram, West Nusa Tenggara 83125, Indonesia"
     },
     "emailValue": "oia@unram.ac.id",
     "phoneValue": "+62 877-2245-8767",
@@ -394,8 +394,8 @@
     },
     "mapUrl": "https://maps.google.com/maps?q=Universitas%20Mataram%20Jl.%20Majapahit%20No.62&t=&z=15&ie=UTF8&iwloc=&output=embed",
     "socialInstagram": "https://www.instagram.com/oiaunram?xtok=ZDNlZDc0MzIxNw==",
-    "socialLinkedin": "https://www.linkedin.com/company/oia-unram/",
-    "socialYoutube": "http://www.youtube.com/@officialunram",
+    "socialLinkedin": "https://linkedin.com/school/universitas-mataram",
+    "socialYoutube": "https://www.linkedin.com/company/oia-unram/",
     "socialWhatsapp": "https://wa.me/6287722458767"
   },
   "guides": [
