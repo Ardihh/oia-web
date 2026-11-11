@@ -82,16 +82,22 @@ export function News({ locale }: NewsProps) {
         </div>
 
         {/* Editorial News Grid (DESIGN.md Section 7) */}
-        {articles.length === 0 ? (
-          <div className="text-center py-12 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto">
-            <BookOpen className="w-8 h-8 text-ink-soft/40 mx-auto mb-3" />
-            <p className="text-sm font-medium text-ink-soft">
-              {isEn ? 'No news articles published yet.' : 'Belum ada berita yang diterbitkan.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-            {articles.map((item, index) => {
+        {(() => {
+          const publishedArticles = articles.filter((a) => a.status !== 'draft');
+          if (publishedArticles.length === 0) {
+            return (
+              <div className="text-center py-12 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto">
+                <BookOpen className="w-8 h-8 text-ink-soft/40 mx-auto mb-3" />
+                <p className="text-sm font-medium text-ink-soft">
+                  {isEn ? 'No news articles published yet.' : 'Belum ada berita yang diterbitkan.'}
+                </p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+              {publishedArticles.map((item, index) => {
             const title =
               typeof item.title === 'object'
                 ? item.title[lang] || item.title.id || item.title.en || ''
@@ -164,8 +170,9 @@ export function News({ locale }: NewsProps) {
             );
           })}
         </div>
-        )}
-      </Container>
-    </section>
+      );
+    })()}
+  </Container>
+</section>
   );
 }

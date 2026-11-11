@@ -1,0 +1,1014 @@
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
+import {
+  ArrowLeft,
+  Eye,
+  Save,
+  Send,
+  Upload,
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Sparkles,
+  RefreshCw,
+  Wand2,
+  Calendar,
+  Tag,
+  User,
+  SlidersHorizontal,
+  X,
+  Loader2,
+  Check,
+} from 'lucide-react';
+import { NewsArticle } from '@/context/ContentContext';
+import { TiptapEditor } from './TiptapEditor';
+import {
+  translateText,
+  slugify,
+  calcReadingTime,
+  getTodayFormatted,
+  plainTextToHtml,
+} from '@/lib/newsUtils';
+
+interface ArticleEditorProps {
+  initialArticle?: NewsArticle | null;
+  categories: { id: string; en: string }[];
+  onBack: () => void;
+  onSave: (article: NewsArticle, isPublish: boolean) => void;
+  onPreview: (article: NewsArticle) => void;
+}
+
+export function ArticleEditor({
+  initialArticle,
+  categories,
+  onBack,
+  onSave,
+  onPreview,
+}: ArticleEditorProps) {
+  // Current editing language tab
+  const [editorLang, setEditorLang] = useState<'id' | 'en'>('id');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Article state
+  const [article, setArticle] = useState<NewsArticle>(() => {
+    if (initialArticle) {
+      // Migrate legacy plain text into HTML paragraphs
+      return {
+        ...initialArticle,
+        status: initialArticle.status || 'published',
+        slug: initialArticle.slug || slugify(initialArticle.title?.id || initialArticle.title?.en || ''),
+        content: {
+          id: plainTextToHtml(initialArticle.content?.id || ''),
+          en: plainTextToHtml(initialArticle.content?.en || ''),
+        },
+      };
+    }
+
+    const today = getTodayFormatted();
+    return {
+      id: Date.now().toString(),
+      category: categories[0] || { id: 'Program Mobilitas', en: 'Mobility Program' },
+      date: today,
+      title: { id: '', en: '' },
+      summary: { id: '', en: '' },
+      content: { id: '<p></p>', en: '<p></p>' },
+      image: '/images/news-1.jpg',
+      author: 'Tim Redaksi KUI UNRAM',
+      status: 'draft',
+      slug: { id: '', en: '' },
+      imageCaption: { id: '', en: '' },
+      imageCredit: 'Dokumentasi KUI UNRAM',
+    };
+  });
+
+  // Track modified / unsaved state
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autosaveTime, setAutosaveTime] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translatingField, setTranslatingField] = useState<string | null>(null);
+
+  // Modals & alerts
+  const [showTranslateConfirm, setShowTranslateConfirm] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [customToast, setCustomToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setCustomToast({ message, type });
+    setTimeout(() => setCustomToast(null), 3000);
+  };
+
+  // Debounced Autosave (2 seconds)
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const articleRef = useRef(article);
+  articleRef.current = article;
+
+  const triggerAutosave = useCallback(() => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      setIsSaving(true);
+      const curr = articleRef.current;
+      onSave(curr, false);
+      const now = new Date();
+      setAutosaveTime(
+        `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      );
+      setHasUnsavedChanges(false);
+      setIsSaving(false);
+    }, 2000);
+  }, [onSave]);
+
+  const updateArticle = (updater: Partial<NewsArticle>) => {
+    setArticle((prev) => {
+      const next = { ...prev, ...updater };
+      return next;
+    });
+    setHasUnsavedChanges(true);
+    triggerAutosave();
+  };
+
+  // Keyboard shortcuts (Ctrl+S, Ctrl+Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleManualSave(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        setShowPublishConfirm(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [article]);
+
+  // Handle manual save
+  const handleManualSave = (isPublish: boolean) => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    setIsSaving(true);
+
+    const updated = {
+      ...article,
+      status: isPublish ? ('published' as const) : ('draft' as const),
+    };
+    setArticle(updated);
+    onSave(updated, isPublish);
+
+    const now = new Date();
+    setAutosaveTime(
+      `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    );
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+
+    showToast(
+      isPublish
+        ? 'Artikel berhasil diterbitkan ke situs publik!'
+        : 'Draf artikel berhasil disimpan!'
+    );
+  };
+
+  // Translation helpers
+  const handleTranslateAll = async () => {
+    const sourceLang = editorLang === 'en' ? 'id' : 'en';
+    const targetLang = editorLang;
+
+    // Check if target already has content
+    const targetHasContent = Boolean(
+      article.title?.[targetLang]?.trim() ||
+      article.summary?.[targetLang]?.trim() ||
+      (article.content?.[targetLang] && article.content[targetLang] !== '<p></p>')
+    );
+
+    if (targetHasContent) {
+      setShowTranslateConfirm(true);
+      return;
+    }
+
+    executeFullTranslation(sourceLang, targetLang);
+  };
+
+  const executeFullTranslation = async (sourceLang: 'id' | 'en', targetLang: 'id' | 'en') => {
+    setIsTranslating(true);
+    setShowTranslateConfirm(false);
+
+    try {
+      const titleSrc = article.title?.[sourceLang] || '';
+      const summarySrc = article.summary?.[sourceLang] || '';
+      const contentSrc = article.content?.[sourceLang] || '';
+
+      const [trTitle, trSummary, trContent] = await Promise.all([
+        titleSrc ? translateText(titleSrc, sourceLang, targetLang) : Promise.resolve(''),
+        summarySrc ? translateText(summarySrc, sourceLang, targetLang) : Promise.resolve(''),
+        contentSrc ? translateText(contentSrc, sourceLang, targetLang) : Promise.resolve(''),
+      ]);
+
+      updateArticle({
+        title: { ...article.title, [targetLang]: trTitle },
+        summary: { ...article.summary, [targetLang]: trSummary },
+        content: {
+          id: targetLang === 'id' ? trContent : (article.content?.id || ''),
+          en: targetLang === 'en' ? trContent : (article.content?.en || ''),
+        },
+      });
+
+      showToast(
+        `Terjemahan ke ${targetLang === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'} berhasil diisi sebagai draf!`
+      );
+    } catch (e) {
+      console.error(e);
+      showToast('Gagal menerjemahkan teks. Silakan coba lagi.', 'error');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleTranslateSingleField = async (
+    field: 'title' | 'summary' | 'content',
+    sourceLang: 'id' | 'en',
+    targetLang: 'id' | 'en'
+  ) => {
+    setTranslatingField(field);
+    try {
+      if (field === 'title') {
+        const text = article.title?.[sourceLang] || '';
+        const res = await translateText(text, sourceLang, targetLang);
+        updateArticle({ title: { ...article.title, [targetLang]: res } });
+      } else if (field === 'summary') {
+        const text = article.summary?.[sourceLang] || '';
+        const res = await translateText(text, sourceLang, targetLang);
+        updateArticle({ summary: { ...article.summary, [targetLang]: res } });
+      } else if (field === 'content') {
+        const text = article.content?.[sourceLang] || '';
+        const res = await translateText(text, sourceLang, targetLang);
+        updateArticle({
+          content: {
+            id: targetLang === 'id' ? res : (article.content?.id || ''),
+            en: targetLang === 'en' ? res : (article.content?.en || ''),
+          },
+        });
+      }
+      showToast(`Bagian ${field} berhasil diterjemahkan ulang.`);
+    } catch (e) {
+      console.error(e);
+      showToast('Gagal menerjemahkan bagian ini.', 'error');
+    } finally {
+      setTranslatingField(null);
+    }
+  };
+
+  // Image Upload Handler
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      showToast('Ukuran foto terlalu besar (maksimal 3MB).', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        updateArticle({ image: base64 });
+        showToast('Foto sampul berhasil diperbarui.');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Active language data
+  const currentTitle = article.title?.[editorLang] || '';
+  const currentSummary = article.summary?.[editorLang] || '';
+  const currentContent = article.content?.[editorLang] || '';
+  const currentCaption =
+    typeof article.imageCaption === 'object'
+      ? article.imageCaption?.[editorLang] || ''
+      : article.imageCaption || '';
+
+  const readingMetrics = calcReadingTime(currentContent);
+
+  // Content completeness checks
+  const hasIdContent = Boolean(article.title?.id?.trim() && article.summary?.id?.trim());
+  const hasEnContent = Boolean(article.title?.en?.trim() && article.summary?.en?.trim());
+
+  const isPublishReady = Boolean(
+    article.title?.id?.trim() &&
+    article.summary?.id?.trim() &&
+    article.content?.id?.trim() &&
+    article.content?.id !== '<p></p>'
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 -mx-4 sm:-mx-6 -mt-8">
+      {/* Toast Notification */}
+      {customToast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div
+            className={`px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold flex items-center gap-2 ${
+              customToast.type === 'error'
+                ? 'bg-rose-600 text-white border-rose-700'
+                : 'bg-unram-950 text-white border-unram-800'
+            }`}
+          >
+            {customToast.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-rose-200" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            )}
+            <span>{customToast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Sticky Top Bar */}
+      <header className="sticky top-0 z-30 h-16 px-4 sm:px-8 bg-white border-b border-slate-200/90 shadow-2xs flex items-center justify-between gap-4">
+        {/* Left: Back & Document Status */}
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                if (window.confirm('Ada perubahan yang belum disimpan. Tetap ingin kembali ke daftar?')) {
+                  onBack();
+                }
+              } else {
+                onBack();
+              }
+            }}
+            className="p-2 -ml-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Kembali ke Daftar Berita"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-2 truncate">
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                article.status === 'published'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-amber-50 text-amber-800 border border-amber-200'
+              }`}
+            >
+              {article.status === 'published' ? 'Terbit' : 'Draft'}
+            </span>
+
+            <span className="text-xs text-slate-400 font-medium hidden md:inline">
+              {isSaving ? (
+                <span className="flex items-center gap-1 text-slate-500">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Menyimpan...
+                </span>
+              ) : autosaveTime ? (
+                `Tersimpan otomatis ${autosaveTime}`
+              ) : (
+                'Draft baru'
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Language Tabs */}
+        <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/60 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setEditorLang('id')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+              editorLang === 'id'
+                ? 'bg-white text-unram-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                hasIdContent ? 'bg-emerald-500' : 'bg-slate-300'
+              }`}
+            />
+            <span>Indonesia</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setEditorLang('en')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all ${
+              editorLang === 'en'
+                ? 'bg-white text-unram-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                hasEnContent ? 'bg-emerald-500' : 'bg-amber-400'
+              }`}
+            />
+            <span>English</span>
+          </button>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPreview(article)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            title="Pratinjau tampilan publik"
+          >
+            <Eye className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline">Pratinjau</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleManualSave(false)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            title="Simpan sebagai draft (Ctrl+S)"
+          >
+            <Save className="w-4 h-4 text-slate-500" />
+            <span className="hidden sm:inline">Simpan Draft</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowPublishConfirm(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all active:scale-[0.98]"
+            title="Terbitkan ke situs publik (Ctrl+Enter)"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Terbitkan</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`p-2 rounded-xl border transition-colors ${
+              sidebarOpen
+                ? 'bg-slate-100 text-slate-900 border-slate-300'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+            title="Pengaturan Artikel"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Workspace Body */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Centered Writing Column */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-white">
+          <div className="max-w-[720px] mx-auto space-y-8">
+            {/* Translation Assistance Banner */}
+            {editorLang === 'en' && !hasEnContent && (
+              <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-900">
+                      Versi Bahasa Inggris Belum Terisi
+                    </h4>
+                    <p className="text-[11px] text-amber-700 mt-0.5 leading-relaxed">
+                      Anda dapat otomatis mengisi judul, ringkasan, dan isi berita dari draf Bahasa Indonesia.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={handleTranslateAll}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs transition-colors disabled:opacity-50 flex-shrink-0 self-end sm:self-auto"
+                >
+                  {isTranslating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Terjemahkan dari ID</span>
+                </button>
+              </div>
+            )}
+
+            {editorLang === 'id' && !hasIdContent && hasEnContent && (
+              <div className="p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-bold text-indigo-900">
+                      Versi Bahasa Indonesia Masih Kosong
+                    </h4>
+                    <p className="text-[11px] text-indigo-700 mt-0.5 leading-relaxed">
+                      Terjemahkan otomatis dari konten Bahasa Inggris yang sudah Anda buat.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isTranslating}
+                  onClick={handleTranslateAll}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs transition-colors disabled:opacity-50 flex-shrink-0 self-end sm:self-auto"
+                >
+                  {isTranslating ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Terjemahkan dari EN</span>
+                </button>
+              </div>
+            )}
+
+            {/* Cover Image Upload Area */}
+            <div className="space-y-3">
+              <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 group/cover">
+                <Image
+                  src={article.image || '/images/news-1.jpg'}
+                  alt="Foto Sampul Berita"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, 720px"
+                  className="object-cover transition-transform duration-300 group-hover/cover:scale-101"
+                />
+
+                {/* Upload Overlay */}
+                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/cover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-800 text-xs font-bold shadow-md hover:bg-slate-50 transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <span>Ganti Foto Sampul</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Caption and Photo Credit Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <input
+                  type="text"
+                  placeholder={`Keterangan foto (${editorLang.toUpperCase()})...`}
+                  value={currentCaption}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const prevCap = (typeof article.imageCaption === 'object' && article.imageCaption !== null ? article.imageCaption : {}) as { id?: string; en?: string };
+                    updateArticle({
+                      imageCaption: {
+                        id: editorLang === 'id' ? val : (prevCap?.id || val),
+                        en: editorLang === 'en' ? val : (prevCap?.en || val),
+                      },
+                    });
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 focus:outline-none focus:border-slate-400 placeholder:text-slate-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Kredit foto (misal: Humas UNRAM)..."
+                  value={article.imageCredit || ''}
+                  onChange={(e) => updateArticle({ imageCredit: e.target.value })}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 focus:outline-none focus:border-slate-400 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Title Input (Borderless, Newsreader Serif Style) */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Judul Berita ({editorLang === 'id' ? 'Bahasa Indonesia' : 'English'})
+                </span>
+                {editorLang === 'en' && article.title?.id && (
+                  <button
+                    type="button"
+                    disabled={translatingField === 'title'}
+                    onClick={() => handleTranslateSingleField('title', 'id', 'en')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-unram-600 hover:text-unram-800 disabled:opacity-50"
+                  >
+                    {translatingField === 'title' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    <span>Terjemahkan ulang judul</span>
+                  </button>
+                )}
+              </div>
+              <textarea
+                rows={2}
+                placeholder={
+                  editorLang === 'id'
+                    ? 'Tulis judul berita di sini...'
+                    : 'Write article headline in English...'
+                }
+                value={currentTitle}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const newTitle = { ...article.title, [editorLang]: val };
+                  updateArticle({
+                    title: newTitle,
+                    slug: editorLang === 'id' ? slugify(val) : article.slug,
+                  });
+                }}
+                className="w-full font-serif text-3xl sm:text-4xl text-slate-900 placeholder:text-slate-300 font-normal leading-tight focus:outline-none border-b border-transparent focus:border-slate-200 resize-none transition-colors"
+              />
+            </div>
+
+            {/* Summary Input (Lead Paragraph / Muted text with character counter) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold uppercase tracking-wider text-slate-400">
+                  Ringkasan / Paragraf Pembuka ({editorLang.toUpperCase()})
+                </span>
+                <span
+                  className={`font-mono ${
+                    currentSummary.length > 200
+                      ? 'text-amber-600 font-bold'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  {currentSummary.length}/160 karakter
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                placeholder={
+                  editorLang === 'id'
+                    ? 'Tulis ringkasan singkat artikel berita (disarankan ~160 karakter)...'
+                    : 'Write a concise summary of the article (recommended ~160 characters)...'
+                }
+                value={currentSummary}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateArticle({
+                    summary: { ...article.summary, [editorLang]: val },
+                  });
+                }}
+                className="w-full text-base sm:text-lg text-slate-600 placeholder:text-slate-300 font-normal leading-relaxed focus:outline-none border-b border-transparent focus:border-slate-200 resize-none transition-colors"
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-100" />
+
+            {/* Rich-Text Body Editor (Tiptap) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Isi Lengkap Berita ({editorLang.toUpperCase()})
+                </span>
+                {editorLang === 'en' && article.content?.id && (
+                  <button
+                    type="button"
+                    disabled={translatingField === 'content'}
+                    onClick={() => handleTranslateSingleField('content', 'id', 'en')}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-unram-600 hover:text-unram-800 disabled:opacity-50"
+                  >
+                    {translatingField === 'content' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    <span>Terjemahkan ulang bodi</span>
+                  </button>
+                )}
+              </div>
+
+              <TiptapEditor
+                content={currentContent}
+                placeholder={
+                  editorLang === 'id'
+                    ? 'Mulai ketik isi berita atau dokumentasi kegiatan di sini...'
+                    : 'Start writing article body in English here...'
+                }
+                onChange={(html) => {
+                  updateArticle({
+                    content: {
+                      id: editorLang === 'id' ? html : (article.content?.id || ''),
+                      en: editorLang === 'en' ? html : (article.content?.en || ''),
+                    },
+                  });
+                }}
+              />
+
+              {/* Word Count and Reading Time Footer */}
+              <div className="pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>
+                    {readingMetrics.words} kata &bull; perkiraan waktu baca ~{readingMetrics.minutes} menit
+                  </span>
+                </span>
+                <span className="text-[11px]">
+                  Pintasan: <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600">Ctrl+S</kbd> simpan draf &bull; <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-slate-600">Ctrl+Enter</kbd> terbitkan
+                </span>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Right Sidebar: Settings & Publish Checklist */}
+        <aside
+          className={`w-80 border-l border-slate-200 bg-slate-50/70 p-6 overflow-y-auto transition-all duration-200 flex-shrink-0 ${
+            sidebarOpen ? 'block' : 'hidden'
+          }`}
+        >
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-heading font-bold text-sm text-slate-900 uppercase tracking-wider">
+                Pengaturan Berita
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Status Setting */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Status Publikasi
+              </label>
+              <select
+                value={article.status || 'draft'}
+                onChange={(e) => updateArticle({ status: e.target.value as 'draft' | 'published' })}
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 bg-white"
+              >
+                <option value="draft">Draft (Belum Ditampilkan)</option>
+                <option value="published">Terbit (Tampil di Website)</option>
+              </select>
+            </div>
+
+            {/* Category Setting */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Kategori Berita
+              </label>
+              <select
+                value={
+                  typeof article.category === 'object'
+                    ? article.category.id
+                    : article.category
+                }
+                onChange={(e) => {
+                  const matched = categories.find((c) => c.id === e.target.value);
+                  if (matched) {
+                    updateArticle({ category: matched });
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 bg-white"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} / {c.en}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Publication Date Setting */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Tanggal Publikasi
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = getTodayFormatted();
+                    updateArticle({ date: today });
+                    showToast('Tanggal publikasi diatur ke hari ini.');
+                  }}
+                  className="text-[10px] font-bold text-unram-600 hover:text-unram-800"
+                >
+                  Hari Ini
+                </button>
+              </div>
+              <input
+                type="text"
+                placeholder="11 Nov 2026"
+                value={typeof article.date === 'object' ? article.date.id : article.date}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateArticle({
+                    date: {
+                      id: val,
+                      en: val,
+                    },
+                  });
+                }}
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 bg-white"
+              />
+            </div>
+
+            {/* Slug URL Setting */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Slug URL (SEO)
+              </label>
+              <input
+                type="text"
+                placeholder="slug-judul-berita"
+                value={
+                  typeof article.slug === 'object'
+                    ? article.slug.id
+                    : (article.slug as string) || ''
+                }
+                onChange={(e) => updateArticle({ slug: slugify(e.target.value) })}
+                className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 bg-white text-slate-600"
+              />
+            </div>
+
+            {/* Author Setting */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Penulis / Redaksi
+              </label>
+              <input
+                type="text"
+                value={article.author || ''}
+                onChange={(e) => updateArticle({ author: e.target.value })}
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 bg-white"
+              />
+            </div>
+
+            {/* Checklist Kesiapan Terbit */}
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Checklist Kesiapan Terbit
+              </h4>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  {article.title?.id?.trim() ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
+                  )}
+                  <span className={article.title?.id?.trim() ? 'text-slate-800' : 'text-slate-400'}>
+                    Judul Bahasa Indonesia terisi
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {article.summary?.id?.trim() ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
+                  )}
+                  <span className={article.summary?.id?.trim() ? 'text-slate-800' : 'text-slate-400'}>
+                    Ringkasan pembuka terisi
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {article.image ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
+                  )}
+                  <span className={article.image ? 'text-slate-800' : 'text-slate-400'}>
+                    Foto sampul terpasang
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {article.content?.id && article.content.id !== '<p></p>' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-slate-300 flex-shrink-0" />
+                  )}
+                  <span
+                    className={
+                      article.content?.id && article.content.id !== '<p></p>'
+                        ? 'text-slate-800'
+                        : 'text-slate-400'
+                    }
+                  >
+                    Isi berita telah ditulis
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                  {hasEnContent ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  )}
+                  <span className={hasEnContent ? 'text-slate-800' : 'text-amber-700'}>
+                    {hasEnContent ? 'Versi Bahasa Inggris lengkap' : 'Versi Inggris belum lengkap (opsional)'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Overwrite Confirmation Dialog */}
+      {showTranslateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+              <Sparkles className="w-5 h-5" />
+            </div>
+
+            <div>
+              <h3 className="font-heading font-bold text-lg text-slate-900">
+                Timpa Konten yang Sudah Ada?
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Versi {editorLang === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'} sudah memiliki teks. Melanjutkan translasi otomatis akan menimpa judul, ringkasan, dan isi berita yang ada.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowTranslateConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const source = editorLang === 'en' ? 'id' : 'en';
+                  executeFullTranslation(source, editorLang);
+                }}
+                className="px-4 py-2 rounded-xl bg-unram-900 hover:bg-unram-800 text-white text-xs font-bold transition-colors"
+              >
+                Ya, Terjemahkan & Timpa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Confirmation Dialog */}
+      {showPublishConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="w-10 h-10 rounded-full bg-unram-100 text-unram-900 flex items-center justify-center">
+              <Send className="w-5 h-5" />
+            </div>
+
+            <div>
+              <h3 className="font-heading font-bold text-lg text-slate-900">
+                Terbitkan Berita ke Publik?
+              </h3>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Artikel akan langsung muncul di beranda dan halaman arsip berita situs KUI UNRAM.
+              </p>
+
+              {!isPublishReady && (
+                <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 mt-0.5 flex-shrink-0" />
+                  <span>Judul dan ringkasan Bahasa Indonesia wajib diisi sebelum menerbitkan.</span>
+                </div>
+              )}
+
+              {!hasEnContent && isPublishReady && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <span>Versi Bahasa Inggris belum lengkap. Pengunjung berbahasa Inggris akan melihat versi Bahasa Indonesia sebagai fallback.</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowPublishConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!isPublishReady}
+                onClick={() => {
+                  setShowPublishConfirm(false);
+                  handleManualSave(true);
+                  onBack();
+                }}
+                className="px-5 py-2 rounded-xl bg-unram-900 hover:bg-unram-800 text-white text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
+              >
+                Konfirmasi & Terbitkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

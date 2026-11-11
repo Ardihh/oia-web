@@ -42,6 +42,10 @@ export interface NewsArticle {
   content?: { id: string; en: string };
   image: string;
   author?: string;
+  status?: 'draft' | 'published';
+  slug?: { id: string; en: string } | string;
+  imageCaption?: { id: string; en: string } | string;
+  imageCredit?: string;
 }
 
 export interface SiteContent {

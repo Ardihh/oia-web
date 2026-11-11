@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Calendar, Tag, User, Share2, Check, BookOpen } f
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { useSiteContent, defaultNews, NewsArticle } from '@/context/ContentContext';
+import { isHtmlContent, sanitizeHtml } from '@/lib/newsUtils';
 
 function NewsContent() {
   const locale = useLocale();
@@ -70,7 +71,9 @@ function NewsContent() {
     const date = getField(currentArticle.date);
     const rawContent = getField(currentArticle.content);
     const author = currentArticle.author || (isEn ? 'IAO UNRAM Editorial Team' : 'Tim Redaksi KUI UNRAM');
-    const otherArticles = articles.filter((a) => a.id !== currentArticle.id).slice(0, 3);
+    const otherArticles = articles
+      .filter((a) => a.id !== currentArticle.id && a.status !== 'draft')
+      .slice(0, 3);
 
     // Generate realistic multi-paragraph body text if content is short
     const bodyParagraphs: string[] = rawContent && rawContent.length > 100
@@ -149,21 +152,39 @@ function NewsContent() {
                 className="object-cover"
               />
             </div>
-            <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide">
-              {title} &mdash; Dokumentasi Kegiatan Kantor Urusan Internasional UNRAM.
-            </p>
+            {(currentArticle.imageCaption || currentArticle.imageCredit) ? (
+              <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide flex flex-wrap items-center justify-between gap-2">
+                <span>{getField(currentArticle.imageCaption) || `${title} — Dokumentasi Kegiatan KUI UNRAM.`}</span>
+                {currentArticle.imageCredit && (
+                  <span className="text-[11px] text-ink-soft/70">Foto: {currentArticle.imageCredit}</span>
+                )}
+              </p>
+            ) : (
+              <p className="text-xs text-ink-soft mt-2.5 font-normal tracking-wide">
+                {title} &mdash; {isEn ? 'Documentation of UNRAM International Affairs Office Activities.' : 'Dokumentasi Kegiatan Kantor Urusan Internasional UNRAM.'}
+              </p>
+            )}
           </div>
 
           {/* Article Narrative Body */}
           <div className="max-w-3xl space-y-6 text-base sm:text-lg text-ink/90 leading-[1.75] font-normal">
             {/* Lead Summary Paragraph */}
-            <p className="text-lg sm:text-xl text-ink font-normal leading-[1.65] pb-2 font-serif italic border-l-2 border-unram-600 pl-5">
-              &ldquo;{summary}&rdquo;
-            </p>
+            {summary && (
+              <p className="text-lg sm:text-xl text-ink font-normal leading-[1.65] pb-2 font-serif italic border-l-2 border-unram-600 pl-5">
+                &ldquo;{summary}&rdquo;
+              </p>
+            )}
 
-            {bodyParagraphs.map((para: string, idx: number) => (
-              <p key={idx}>{para}</p>
-            ))}
+            {isHtmlContent(rawContent) ? (
+              <div
+                className="prose prose-slate max-w-none text-base sm:text-lg text-ink/90 leading-[1.75] font-normal"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(rawContent) }}
+              />
+            ) : (
+              bodyParagraphs.map((para: string, idx: number) => (
+                <p key={idx}>{para}</p>
+              ))
+            )}
 
             {/* Callout Box */}
             <div className="my-8 p-6 rounded-[4px] bg-unram-50 border border-hairline space-y-2">
@@ -241,63 +262,70 @@ function NewsContent() {
         </div>
 
         {/* Full Grid of All News */}
-        {articles.length === 0 ? (
-          <div className="text-center py-16 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto my-8">
-            <BookOpen className="w-10 h-10 text-ink-soft/40 mx-auto mb-3" />
-            <h3 className="font-serif text-xl font-normal text-ink mb-1">
-              {isEn ? 'No News Articles' : 'Belum Ada Berita'}
-            </h3>
-            <p className="text-sm text-ink-soft">
-              {isEn
-                ? 'There are currently no news articles published.'
-                : 'Saat ini belum ada artikel berita yang diterbitkan.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-            {articles.map((item, index) => {
-              const title = getField(item.title);
-              const summary = getField(item.summary);
-              const category = getField(item.category);
-              const date = getField(item.date);
-              const href = `/${locale}/news/?id=${encodeURIComponent(item.id)}`;
+        {(() => {
+          const publishedArticles = articles.filter((a) => a.status !== 'draft');
+          if (publishedArticles.length === 0) {
+            return (
+              <div className="text-center py-16 px-4 rounded-[4px] border border-hairline bg-surface max-w-xl mx-auto my-8">
+                <BookOpen className="w-10 h-10 text-ink-soft/40 mx-auto mb-3" />
+                <h3 className="font-serif text-xl font-normal text-ink mb-1">
+                  {isEn ? 'No News Articles' : 'Belum Ada Berita'}
+                </h3>
+                <p className="text-sm text-ink-soft">
+                  {isEn
+                    ? 'There are currently no news articles published.'
+                    : 'Saat ini belum ada artikel berita yang diterbitkan.'}
+                </p>
+              </div>
+            );
+          }
 
-              return (
-                <article key={item.id || index} className="group flex flex-col justify-between">
-                  <div>
-                    <a href={href} className="block relative aspect-[3/2] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100 mb-4">
-                      <Image
-                        src={item.image || '/images/news-1.jpg'}
-                        alt={title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                        className="object-cover group-hover:scale-102 transition-transform duration-300"
-                      />
-                    </a>
-                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-soft mb-2">
-                      <span>{date}</span> {category && <>&bull; <span>{category}</span></>}
-                    </p>
-                    <h3 className="font-serif text-xl font-normal text-ink leading-snug group-hover:text-unram-600 transition-colors">
-                      <a href={href}>{title}</a>
-                    </h3>
-                    <p className="text-sm text-ink-soft leading-[1.65] mt-2 line-clamp-3">
-                      {summary}
-                    </p>
-                  </div>
-                  <div className="pt-4">
-                    <a
-                      href={href}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-unram-600 group-hover:text-unram-700 underline-offset-4 hover:underline transition-colors"
-                    >
-                      <span>{isEn ? 'Read article' : 'Baca selengkapnya'}</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </a>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
+              {publishedArticles.map((item, index) => {
+                const title = getField(item.title);
+                const summary = getField(item.summary);
+                const category = getField(item.category);
+                const date = getField(item.date);
+                const href = `/${locale}/news/?id=${encodeURIComponent(item.id)}`;
+
+                return (
+                  <article key={item.id || index} className="group flex flex-col justify-between">
+                    <div>
+                      <a href={href} className="block relative aspect-[3/2] w-full rounded-[4px] border border-hairline overflow-hidden bg-unram-100 mb-4">
+                        <Image
+                          src={item.image || '/images/news-1.jpg'}
+                          alt={title}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover group-hover:scale-102 transition-transform duration-300"
+                        />
+                      </a>
+                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-ink-soft mb-2">
+                        <span>{date}</span> {category && <>&bull; <span>{category}</span></>}
+                      </p>
+                      <h3 className="font-serif text-xl font-normal text-ink leading-snug group-hover:text-unram-600 transition-colors">
+                        <a href={href}>{title}</a>
+                      </h3>
+                      <p className="text-sm text-ink-soft leading-[1.65] mt-2 line-clamp-3">
+                        {summary}
+                      </p>
+                    </div>
+                    <div className="pt-4">
+                      <a
+                        href={href}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-unram-600 group-hover:text-unram-700 underline-offset-4 hover:underline transition-colors"
+                      >
+                        <span>{isEn ? 'Read article' : 'Baca selengkapnya'}</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </a>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          );
+        })()}
       </Container>
     </div>
   );

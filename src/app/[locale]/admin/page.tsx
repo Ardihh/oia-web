@@ -47,17 +47,9 @@ import {
   defaultGuides,
   defaultNews,
 } from '@/context/ContentContext';
-
-interface NewsItem {
-  id: string;
-  category: { id: string; en: string };
-  date: { id: string; en: string };
-  title: { id: string; en: string };
-  summary: { id: string; en: string };
-  content?: { id: string; en: string };
-  image: string;
-  author?: string;
-}
+import { ArticleListView } from '@/components/admin/news/ArticleListView';
+import { ArticleEditor } from '@/components/admin/news/ArticleEditor';
+import { ArticlePreviewModal } from '@/components/admin/news/ArticlePreviewModal';
 
 const DEFAULT_PASSCODE = 'unram2026';
 
@@ -133,21 +125,16 @@ export default function AdminPage() {
   const [siteDraft, setSiteDraft] = useState<SiteContent>(content || defaultSiteContent);
 
   // News State
-  const [newsList, setNewsList] = useState<NewsItem[]>([]);
-  const [isEditingNews, setIsEditingNews] = useState(false);
-  const [editNewsId, setEditNewsId] = useState<string | null>(null);
+  const [newsList, setNewsList] = useState<NewsArticle[]>([]);
+  const [newsView, setNewsView] = useState<'list' | 'editor'>('list');
+  const [editingArticle, setEditingArticle] = useState<NewsArticle | null>(null);
+  const [previewArticle, setPreviewArticle] = useState<NewsArticle | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // News Form with auto date and full article body
-  const [newsForm, setNewsForm] = useState<NewsItem>({
-    id: '',
-    category: PRESET_CATEGORIES[0],
-    date: getTodayFormattedDate(),
-    title: { id: '', en: '' },
-    summary: { id: '', en: '' },
-    content: { id: '', en: '' },
-    image: '/images/news-1.jpg',
-    author: isEn ? 'IAO UNRAM Media Office' : 'Humas KUI UNRAM',
-  });
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Guides & Handbooks State
   const [guideForm, setGuideForm] = useState<GuideItem>({
@@ -176,14 +163,14 @@ export default function AdminPage() {
     if (content) {
       setSiteDraft(content);
       if (Array.isArray(content.news)) {
-        setNewsList(content.news as NewsItem[]);
+        setNewsList(content.news as NewsArticle[]);
       }
     }
   }, [content]);
 
   const loadNews = () => {
     if (Array.isArray(content?.news)) {
-      setNewsList(content.news as NewsItem[]);
+      setNewsList(content.news as NewsArticle[]);
       return;
     }
     const localData = localStorage.getItem('unram_custom_news');
@@ -198,7 +185,7 @@ export default function AdminPage() {
         console.error(e);
       }
     }
-    setNewsList(defaultNews as NewsItem[]);
+    setNewsList(defaultNews as NewsArticle[]);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -283,35 +270,6 @@ export default function AdminPage() {
   };
 
   // ==================== AUTO TRANSLATION HANDLERS ====================
-  // Auto translate news title, summary, and content
-  const handleAutoTranslateNews = async (sourceLang: 'id' | 'en') => {
-    const targetLang = sourceLang === 'id' ? 'en' : 'id';
-    setIsTranslating(true);
-    try {
-      const titleSource = newsForm.title[sourceLang];
-      const summarySource = newsForm.summary[sourceLang];
-      const contentSource = newsForm.content ? newsForm.content[sourceLang] : '';
-
-      const [translatedTitle, translatedSummary, translatedContent] = await Promise.all([
-        translateText(titleSource, sourceLang, targetLang),
-        translateText(summarySource, sourceLang, targetLang),
-        contentSource ? translateText(contentSource, sourceLang, targetLang) : Promise.resolve(''),
-      ]);
-
-      setNewsForm({
-        ...newsForm,
-        title: { ...newsForm.title, [targetLang]: translatedTitle },
-        summary: { ...newsForm.summary, [targetLang]: translatedSummary },
-        content: {
-          id: targetLang === 'id' ? translatedContent : (newsForm.content?.id || ''),
-          en: targetLang === 'en' ? translatedContent : (newsForm.content?.en || ''),
-        },
-      });
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
   // Auto translate Guidebook
   const handleAutoTranslateGuide = async (sourceLang: 'id' | 'en') => {
     const targetLang = sourceLang === 'id' ? 'en' : 'id';
@@ -362,25 +320,19 @@ export default function AdminPage() {
     }
   };
 
-  // ==================== NEWS CRUD ====================
-  const handleSaveNews = (e: React.FormEvent) => {
-    e.preventDefault();
-    let updated: NewsItem[];
-    if (editNewsId) {
-      updated = newsList.map((item) =>
-        item.id === editNewsId ? { ...newsForm, id: editNewsId } : item
-      );
+  // ==================== NEWS CRUD (REDESIGNED) ====================
+  const handleSaveNewsArticle = (article: NewsArticle, isPublish: boolean) => {
+    let updated: NewsArticle[];
+    const existingIndex = newsList.findIndex((item) => item.id === article.id);
+    if (existingIndex >= 0) {
+      updated = newsList.map((item) => (item.id === article.id ? article : item));
     } else {
-      const newItem: NewsItem = {
-        ...newsForm,
-        id: Date.now().toString(),
-      };
-      updated = [newItem, ...newsList];
+      updated = [article, ...newsList];
     }
+
     setNewsList(updated);
     localStorage.setItem('unram_custom_news', JSON.stringify(updated));
 
-    // SYNC WITH CONTENT CONTEXT & LIVE EVENT
     const updatedDraft = {
       ...siteDraft,
       news: updated as any,
@@ -388,53 +340,43 @@ export default function AdminPage() {
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
 
-    resetNewsForm();
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    showToast(
+      isPublish
+        ? (isEn ? 'Article published successfully!' : 'Berita berhasil diterbitkan!')
+        : (isEn ? 'Draft saved successfully!' : 'Draf berita berhasil disimpan!')
+    );
+
+    setNewsView('list');
+    setEditingArticle(null);
   };
 
-  const handleEditNews = (item: NewsItem) => {
-    setNewsForm({
-      ...item,
-      content: item.content || { id: '', en: '' },
-    });
-    setEditNewsId(item.id);
-    setIsEditingNews(true);
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+  const handleDeleteNewsArticle = (id: string) => {
+    const updated = newsList.filter((item) => item.id !== id);
+    setNewsList(updated);
+    localStorage.setItem('unram_custom_news', JSON.stringify(updated));
+
+    const updatedDraft = {
+      ...siteDraft,
+      news: updated as any,
+    };
+    setSiteDraft(updatedDraft);
+    updateContent(updatedDraft);
+
+    showToast(isEn ? 'Article deleted' : 'Berita berhasil dihapus');
   };
 
-  const handleDeleteNews = (id: string) => {
-    if (confirm(isEn ? 'Delete this news article?' : 'Hapus berita ini?')) {
-      const updated = newsList.filter((item) => item.id !== id);
-      setNewsList(updated);
-      localStorage.setItem('unram_custom_news', JSON.stringify(updated));
-
-      const updatedDraft = {
-        ...siteDraft,
-        news: updated as any,
-      };
-      setSiteDraft(updatedDraft);
-      updateContent(updatedDraft);
-
-      if (editNewsId === id) resetNewsForm();
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    }
+  const handleStartEditNews = (article: NewsArticle) => {
+    setEditingArticle(article);
+    setNewsView('editor');
   };
 
-  const resetNewsForm = () => {
-    setEditNewsId(null);
-    setIsEditingNews(false);
-    setNewsForm({
-      id: '',
-      category: PRESET_CATEGORIES[0],
-      date: getTodayFormattedDate(),
-      title: { id: '', en: '' },
-      summary: { id: '', en: '' },
-      content: { id: '', en: '' },
-      image: '/images/news-1.jpg',
-      author: isEn ? 'IAO UNRAM Media Office' : 'Humas KUI UNRAM',
-    });
+  const handleCreateNewArticle = () => {
+    setEditingArticle(null);
+    setNewsView('editor');
+  };
+
+  const handlePreviewNewsArticle = (article: NewsArticle) => {
+    setPreviewArticle(article);
   };
 
   // ==================== GUIDES & HANDBOOKS CRUD ====================
@@ -813,366 +755,71 @@ export default function AdminPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-slate-200/90 sticky top-[61px] z-40 shadow-subtle overflow-x-auto">
-        <Container>
-          <div className="flex space-x-1 sm:space-x-2 py-2 min-w-max">
-            {navTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key as TabType)}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-unram-900 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </Container>
-      </div>
-
-      <Container className="pt-8">
-        {/* ==================== TAB 1: NEWS (WITH AUTO-TRANSLATE & DROPDOWN CATEGORY) ==================== */}
-        {activeTab === 'news' && (
-          <div className="space-y-8">
-            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
-                    <Edit3 className="w-5 h-5 text-unram-900" />
-                    <span>{isEditingNews ? (isEn ? 'Edit Article' : 'Edit Berita') : (isEn ? 'Add New Article' : 'Tambah Berita Baru')}</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isEn ? 'Category uses preset options, date is automated, and translations can be auto-filled.' : 'Kategori berupa opsi pilihan, tanggal otomatis hari ini, dan terjemahan bisa otomatis.'}
-                  </p>
-                </div>
-
-                {/* Auto Translate Buttons */}
-                <div className="flex items-center gap-2">
+      {!(activeTab === 'news' && newsView === 'editor') && (
+        <div className="bg-white border-b border-slate-200/90 sticky top-[61px] z-40 shadow-subtle overflow-x-auto">
+          <Container>
+            <div className="flex space-x-1 sm:space-x-2 py-2 min-w-max">
+              {navTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
                   <button
+                    key={tab.key}
                     type="button"
-                    disabled={isTranslating}
-                    onClick={() => handleAutoTranslateNews('id')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
-                    title="Ketik bahasa Indonesia, lalu klik ini untuk otomatis menerjemahkan ke bahasa Inggris"
+                    onClick={() => {
+                      setActiveTab(tab.key as TabType);
+                      if (tab.key === 'news') {
+                        setNewsView('list');
+                        setEditingArticle(null);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? 'bg-unram-900 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
                   >
-                    {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
-                    <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
                   </button>
-                  <button
-                    type="button"
-                    disabled={isTranslating}
-                    onClick={() => handleAutoTranslateNews('en')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
-                    title="Type in English, then click to auto-translate to Indonesian"
-                  >
-                    {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
-                    <span>⚡ Translate (EN &rarr; ID)</span>
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveNews} className="space-y-5">
-                {/* Category Dropdown (No typing needed) & Automatic Date */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Kategori Berita (Pilihan Opsi)
-                    </label>
-                    <select
-                      value={newsForm.category.id}
-                      onChange={(e) => {
-                        const matched = PRESET_CATEGORIES.find((c) => c.id === e.target.value);
-                        if (matched) {
-                          setNewsForm({ ...newsForm, category: matched });
-                        }
-                      }}
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 bg-white"
-                    >
-                      {PRESET_CATEGORIES.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.id} ({cat.en})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Tanggal Publikasi (Otomatis Hari Ini)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newsForm.date.id}
-                        onChange={(e) =>
-                          setNewsForm({
-                            ...newsForm,
-                            date: { id: e.target.value, en: e.target.value },
-                          })
-                        }
-                        className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 bg-slate-50"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNewsForm({ ...newsForm, date: getTodayFormattedDate() })}
-                        className="p-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-600"
-                        title="Perbarui ke tanggal sekarang"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* News Title ID & EN */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Judul Berita (Bahasa Indonesia)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ketik judul berita..."
-                      value={newsForm.title.id}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          title: { ...newsForm.title, id: e.target.value },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                      <span>Judul Berita (Bahasa Inggris)</span>
-                      <span className="text-[11px] text-amber-600 font-semibold">Bisa Terjemah Otomatis</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="News title in English..."
-                      value={newsForm.title.en}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          title: { ...newsForm.title, en: e.target.value },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                    />
-                  </div>
-                </div>
-
-                {/* News Summary ID & EN */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Ringkasan Berita (Bahasa Indonesia)
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder="Tulis ringkasan berita..."
-                      value={newsForm.summary.id}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          summary: { ...newsForm.summary, id: e.target.value },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                      <span>Ringkasan Berita (Bahasa Inggris)</span>
-                      <span className="text-[11px] text-amber-600 font-semibold">Bisa Terjemah Otomatis</span>
-                    </label>
-                    <textarea
-                      rows={3}
-                      required
-                      placeholder="News summary in English..."
-                      value={newsForm.summary.en}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          summary: { ...newsForm.summary, en: e.target.value },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                    />
-                  </div>
-                </div>
-
-                {/* Full Article Content ID & EN */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                      <span>Isi Lengkap Berita (Bahasa Indonesia)</span>
-                      <span className="text-[11px] text-slate-400 font-normal">Halaman Baca Berita</span>
-                    </label>
-                    <textarea
-                      rows={5}
-                      placeholder="Tulis naskah narasi berita lengkap di sini (pisahkan paragraf dengan baris baru)..."
-                      value={newsForm.content?.id || ''}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          content: {
-                            id: e.target.value,
-                            en: newsForm.content?.en || '',
-                          },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 font-mono text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
-                      <span>Isi Lengkap Berita (Bahasa Inggris)</span>
-                      <span className="text-[11px] text-amber-600 font-semibold">Bisa Terjemah Otomatis</span>
-                    </label>
-                    <textarea
-                      rows={5}
-                      placeholder="Full article body narrative in English (paragraphs separated by blank line)..."
-                      value={newsForm.content?.en || ''}
-                      onChange={(e) =>
-                        setNewsForm({
-                          ...newsForm,
-                          content: {
-                            id: newsForm.content?.id || '',
-                            en: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 font-mono text-xs"
-                    />
-                  </div>
-                </div>
-
-                {/* Photo Selection */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Foto Berita
-                  </label>
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <input
-                      type="text"
-                      value={newsForm.image.startsWith('data:') ? '(Foto Baru Diunggah)' : newsForm.image}
-                      onChange={(e) => setNewsForm({ ...newsForm, image: e.target.value })}
-                      placeholder="/images/news-1.jpg"
-                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300"
-                    />
-                    <label className="w-full sm:w-auto flex-shrink-0 cursor-pointer inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span>{isEn ? 'Upload Photo' : 'Pilih Foto'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageFile(e, (url) => setNewsForm({ ...newsForm, image: url }))}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex items-center gap-3">
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>{isEditingNews ? (isEn ? 'Save Article' : 'Simpan Perubahan') : (isEn ? 'Publish Article' : 'Terbitkan Berita')}</span>
-                  </button>
-                  {isEditingNews && (
-                    <button
-                      type="button"
-                      onClick={resetNewsForm}
-                      className="px-5 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold uppercase tracking-wider"
-                    >
-                      Batal
-                    </button>
-                  )}
-                </div>
-              </form>
+                );
+              })}
             </div>
+          </Container>
+        </div>
+      )}
 
-            {/* News List */}
-            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card">
-              <h3 className="font-heading font-bold text-xl text-slate-900 mb-6 pb-4 border-b border-slate-100">
-                {isEn ? 'Active Articles' : 'Daftar Berita Aktif'}
-              </h3>
-              <div className="space-y-4">
-                {newsList.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    {isEn
-                      ? 'No active articles. Use the form above to publish a new article.'
-                      : 'Belum ada berita aktif. Gunakan formulir di atas untuk menerbitkan berita baru.'}
-                  </div>
-                ) : (
-                  newsList.map((item) => (
-                  <div key={item.id} className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-unram-900 flex-shrink-0">
-                        <Image src={item.image} alt={item.title.id} fill className="object-cover" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-unram-100 text-unram-900">
-                            {item.category.id}
-                          </span>
-                          <span className="text-xs text-slate-400 font-medium">{item.date.id}</span>
-                        </div>
-                        <h4 className="font-heading font-bold text-sm sm:text-base text-slate-900 line-clamp-1 mt-1">
-                          {item.title.id}
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`/${locale}/news/?id=${encodeURIComponent(item.id)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-unram-900 hover:bg-slate-100 inline-flex items-center gap-1"
-                        title="Baca artikel lengkap"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Baca</span>
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => handleEditNews(item)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteNews(item.id)}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-                )))}
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Editor View takes full width when editing news */}
+      {activeTab === 'news' && newsView === 'editor' && (
+        <ArticleEditor
+          initialArticle={editingArticle}
+          categories={PRESET_CATEGORIES}
+          onBack={() => {
+            setNewsView('list');
+            setEditingArticle(null);
+          }}
+          onSave={handleSaveNewsArticle}
+          onPreview={handlePreviewNewsArticle}
+        />
+      )}
 
-        {/* ==================== TAB: GUIDES & HANDBOOKS ==================== */}
+      {/* Standard Tab Containers (List View for news, or other tabs) */}
+      {!(activeTab === 'news' && newsView === 'editor') && (
+        <Container className="pt-8">
+          {/* ==================== TAB 1: NEWS (REDESIGNED LIST VIEW) ==================== */}
+          {activeTab === 'news' && (
+            <ArticleListView
+              articles={newsList}
+              categories={PRESET_CATEGORIES}
+              activeLang={isEn ? 'en' : 'id'}
+              onNewArticle={handleCreateNewArticle}
+              onEditArticle={handleStartEditNews}
+              onDeleteArticle={handleDeleteNewsArticle}
+              onPreviewArticle={handlePreviewNewsArticle}
+            />
+          )}
+
+          {/* ==================== TAB: GUIDES & HANDBOOKS ==================== */}
         {activeTab === 'guides' && (
           <div className="space-y-8">
             <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card">
@@ -2544,7 +2191,24 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </Container>
+        </Container>
+      )}
+
+      {/* Article Live Preview Modal */}
+      {previewArticle && (
+        <ArticlePreviewModal
+          article={previewArticle}
+          onClose={() => setPreviewArticle(null)}
+        />
+      )}
+
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
