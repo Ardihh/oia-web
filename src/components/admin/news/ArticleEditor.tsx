@@ -306,7 +306,7 @@ export function ArticleEditor({
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 -mx-4 sm:-mx-6 -mt-8">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-50 text-slate-800">
       {/* Toast Notification */}
       {customToast && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -327,8 +327,8 @@ export function ArticleEditor({
         </div>
       )}
 
-      {/* Sticky Top Bar */}
-      <header className="sticky top-0 z-30 h-16 px-4 sm:px-8 bg-white border-b border-slate-200/90 shadow-2xs flex items-center justify-between gap-4">
+      {/* Editor Top Bar (Fixed right below the navy CMS header) */}
+      <header className="h-16 flex-shrink-0 px-4 sm:px-8 bg-white border-b border-slate-200/90 shadow-2xs flex items-center justify-between gap-4 z-40">
         {/* Left: Back & Document Status */}
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
@@ -458,7 +458,7 @@ export function ArticleEditor({
       </header>
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Centered Writing Column */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12 bg-white">
           <div className="max-w-[720px] mx-auto space-y-8">
@@ -715,7 +715,7 @@ export function ArticleEditor({
 
         {/* Right Sidebar: Settings & Publish Checklist */}
         <aside
-          className={`w-80 border-l border-slate-200 bg-slate-50/70 p-6 overflow-y-auto transition-all duration-200 flex-shrink-0 ${
+          className={`w-80 border-l border-slate-200 p-6 overflow-y-auto transition-all duration-200 flex-shrink-0 fixed lg:static top-[60px] lg:top-0 right-0 bottom-0 z-40 shadow-xl lg:shadow-none bg-white lg:bg-slate-50/70 ${
             sidebarOpen ? 'block' : 'hidden'
           }`}
         >

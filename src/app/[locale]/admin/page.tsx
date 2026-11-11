@@ -704,11 +704,13 @@ export default function AdminPage() {
     { key: 'export', label: isEn ? 'Export JSON' : 'Ekspor JSON', icon: FileJson },
   ];
 
+  const isEditingArticleView = activeTab === 'news' && newsView === 'editor';
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-24">
+    <div className={`bg-slate-50 text-slate-800 ${isEditingArticleView ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen pb-24'}`}>
       {/* Top Header */}
-      <header className="bg-unram-950 text-white py-3.5 border-b border-unram-800 sticky top-0 z-50 shadow-md">
-        <Container className="flex items-center justify-between">
+      <header className="h-[60px] flex-shrink-0 bg-unram-950 text-white border-b border-unram-800 sticky top-0 z-50 shadow-md flex items-center">
+        <Container className="flex items-center justify-between w-full">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0">
               <Image src="/logo.png" alt="UNRAM" width={32} height={32} className="object-contain" />
@@ -755,8 +757,8 @@ export default function AdminPage() {
       )}
 
       {/* Tab Navigation */}
-      {!(activeTab === 'news' && newsView === 'editor') && (
-        <div className="bg-white border-b border-slate-200/90 sticky top-[61px] z-40 shadow-subtle overflow-x-auto">
+      {!isEditingArticleView && (
+        <div className="bg-white border-b border-slate-200/90 sticky top-[60px] z-40 shadow-subtle overflow-x-auto">
           <Container>
             <div className="flex space-x-1 sm:space-x-2 py-2 min-w-max">
               {navTabs.map((tab) => {
@@ -790,7 +792,7 @@ export default function AdminPage() {
       )}
 
       {/* Editor View takes full width when editing news */}
-      {activeTab === 'news' && newsView === 'editor' && (
+      {isEditingArticleView && (
         <ArticleEditor
           initialArticle={editingArticle}
           categories={PRESET_CATEGORIES}
@@ -804,7 +806,7 @@ export default function AdminPage() {
       )}
 
       {/* Standard Tab Containers (List View for news, or other tabs) */}
-      {!(activeTab === 'news' && newsView === 'editor') && (
+      {!isEditingArticleView && (
         <Container className="pt-8">
           {/* ==================== TAB 1: NEWS (REDESIGNED LIST VIEW) ==================== */}
           {activeTab === 'news' && (
