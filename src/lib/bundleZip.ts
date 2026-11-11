@@ -157,6 +157,15 @@ export async function generatePublishBundle(
     }
   }
 
+  // Process Partner Logos
+  if (publishContent.partners && Array.isArray(publishContent.partners.items)) {
+    for (const partner of publishContent.partners.items) {
+      if (partner.logo) {
+        partner.logo = await processUrl(partner.logo);
+      }
+    }
+  }
+
   // Add all files into uploads/ folder in ZIP
   for (const [filename, item] of fileMap.entries()) {
     uploadsFolder.file(filename, item.blob);

@@ -45,6 +45,7 @@ import {
   RotateCcw,
   Send,
   ExternalLink,
+  Handshake,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import {
@@ -56,8 +57,11 @@ import {
   FaqItem,
   GuideItem,
   NewsArticle,
+  PartnerItem,
+  PartnersSection,
   defaultGuides,
   defaultNews,
+  defaultPartners,
 } from '@/context/ContentContext';
 import { ArticleListView } from '@/components/admin/news/ArticleListView';
 import { ArticleEditor } from '@/components/admin/news/ArticleEditor';
@@ -135,6 +139,7 @@ type TabType =
   | 'about'
   | 'stats'
   | 'services'
+  | 'partners'
   | 'faq'
   | 'contact'
   | 'publish'
@@ -394,6 +399,7 @@ export default function AdminPage() {
       if (JSON.stringify(currentDraft.about) !== JSON.stringify(pub.about)) diffs.push('Profil, Misi & Penerimaan (About)');
       if (JSON.stringify(currentDraft.stats) !== JSON.stringify(pub.stats)) diffs.push('Statistik Dampak');
       if (JSON.stringify(currentDraft.services) !== JSON.stringify(pub.services)) diffs.push('Layanan KUI');
+      if (JSON.stringify(currentDraft.partners) !== JSON.stringify(pub.partners)) diffs.push('Mitra & Kerja Sama (Partners)');
       if (JSON.stringify(currentDraft.faq) !== JSON.stringify(pub.faq)) diffs.push('Tanya Jawab (FAQ)');
       if (JSON.stringify(currentDraft.contact) !== JSON.stringify(pub.contact)) diffs.push('Kontak & Alamat');
       if (JSON.stringify(currentDraft.news) !== JSON.stringify(pub.news)) diffs.push('Berita & Kegiatan');
@@ -976,6 +982,48 @@ export default function AdminPage() {
     }
   };
 
+  // Auto translate Partners
+  const handleAutoTranslatePartners = async (sourceLang: 'id' | 'en') => {
+    const targetLang = sourceLang === 'id' ? 'en' : 'id';
+    setIsTranslating(true);
+    try {
+      const partners = siteDraft.partners || defaultSiteContent.partners || defaultPartners;
+      const curBTitle = partners.becomePartnerTitle || defaultPartners.becomePartnerTitle || { id: '', en: '' };
+      const curBDesc = partners.becomePartnerDesc || defaultPartners.becomePartnerDesc || { id: '', en: '' };
+      const curBBtn = partners.becomePartnerBtn || defaultPartners.becomePartnerBtn || { id: '', en: '' };
+
+      const [k, t, s, sum, bTitle, bDesc, bBtn] = await Promise.all([
+        translateText(partners.kicker?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(partners.title?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(partners.subtitle?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(partners.summary?.[sourceLang] || '', sourceLang, targetLang),
+        translateText(curBTitle[sourceLang] || '', sourceLang, targetLang),
+        translateText(curBDesc[sourceLang] || '', sourceLang, targetLang),
+        translateText(curBBtn[sourceLang] || '', sourceLang, targetLang),
+      ]);
+
+      setSiteDraft({
+        ...siteDraft,
+        partners: {
+          ...partners,
+          kicker: { ...partners.kicker, [targetLang]: k },
+          title: { ...partners.title, [targetLang]: t },
+          subtitle: { ...partners.subtitle, [targetLang]: s },
+          summary: { ...partners.summary, [targetLang]: sum },
+          becomePartnerTitle: { id: curBTitle.id, en: curBTitle.en, [targetLang]: bTitle },
+          becomePartnerDesc: { id: curBDesc.id, en: curBDesc.en, [targetLang]: bDesc },
+          becomePartnerBtn: { id: curBBtn.id, en: curBBtn.en, [targetLang]: bBtn },
+        },
+      });
+
+      showToast(`Teks Mitra berhasil diterjemahkan ke Bahasa ${targetLang === 'id' ? 'Indonesia' : 'Inggris'}!`);
+    } catch (err: any) {
+      alert(`Gagal menerjemahkan: ${err?.message || 'Error'}`);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   // Auto translate FAQ
   const handleAutoTranslateFaq = async (sourceLang: 'id' | 'en') => {
     const targetLang = sourceLang === 'id' ? 'en' : 'id';
@@ -1446,6 +1494,42 @@ export default function AdminPage() {
     });
   };
 
+  // 5. Partners (Add/Remove)
+  const addPartnerItem = () => {
+    const basePartners = siteDraft.partners || defaultSiteContent.partners || defaultPartners;
+    const currItems = Array.isArray(basePartners.items) ? basePartners.items : defaultPartners.items;
+    const newPartner: PartnerItem = {
+      id: `partner-${Date.now()}`,
+      name: 'Universitas / Institusi Mitra Baru',
+      logo: '/partners/partner-1.svg',
+      url: '',
+      country: '',
+    };
+    setSiteDraft({
+      ...siteDraft,
+      partners: {
+        ...basePartners,
+        items: [...currItems, newPartner],
+      },
+    });
+  };
+
+  const removePartnerItem = (id: string) => {
+    const basePartners = siteDraft.partners || defaultSiteContent.partners || defaultPartners;
+    const currItems = Array.isArray(basePartners.items) ? basePartners.items : defaultPartners.items;
+    if (currItems.length <= 1) {
+      alert(isEn ? 'You must keep at least 1 partner item.' : 'Minimal harus ada 1 institusi mitra.');
+      return;
+    }
+    setSiteDraft({
+      ...siteDraft,
+      partners: {
+        ...basePartners,
+        items: currItems.filter((item) => item.id !== id),
+      },
+    });
+  };
+
   // SSR guard
   if (!mounted) {
     return (
@@ -1557,6 +1641,7 @@ export default function AdminPage() {
     { key: 'about', label: 'Profil, Misi & Penerimaan', icon: User },
     { key: 'stats', label: 'Statistik Dampak', icon: BarChart3 },
     { key: 'services', label: 'Layanan KUI', icon: LayoutGrid },
+    { key: 'partners', label: 'Mitra & Kerja Sama', icon: Handshake },
     { key: 'faq', label: 'Tanya Jawab (FAQ)', icon: HelpCircle },
     { key: 'contact', label: 'Kontak & Alamat', icon: Phone },
     { key: 'diagnostics', label: 'Diagnostik Supabase', icon: Activity },
@@ -3139,6 +3224,600 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* ==================== TAB: PARTNERS (DYNAMIC ADD/REMOVE, LOGO UPLOAD & AUTO-TRANSLATE) ==================== */}
+        {activeTab === 'partners' && (() => {
+          const basePartners = siteDraft.partners || defaultSiteContent.partners || defaultPartners;
+          const kicker = basePartners.kicker || defaultPartners.kicker;
+          const title = basePartners.title || defaultPartners.title;
+          const subtitle = basePartners.subtitle || defaultPartners.subtitle;
+          const summary = basePartners.summary || defaultPartners.summary;
+          const becomeTitle = basePartners.becomePartnerTitle || defaultPartners.becomePartnerTitle;
+          const becomeDesc = basePartners.becomePartnerDesc || defaultPartners.becomePartnerDesc;
+          const becomeBtn = basePartners.becomePartnerBtn || defaultPartners.becomePartnerBtn;
+          const becomeUrl = basePartners.becomePartnerUrl ?? defaultPartners.becomePartnerUrl ?? '#contact';
+          const partnerItems = Array.isArray(basePartners.items) ? basePartners.items : defaultPartners.items;
+
+          return (
+            <div className="space-y-6">
+              {/* Header Box */}
+              <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                      <Handshake className="w-5 h-5 text-unram-900" />
+                      <span>Mitra Institusi & Kerja Sama Internasional</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Kelola daftar universitas mitra, unggah logo institusi, tautan website, serta teks ajakan kemitraan.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isTranslating}
+                      onClick={() => handleAutoTranslatePartners('id')}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200 transition-colors disabled:opacity-50"
+                      title="Terjemahkan Teks Mitra dari Indonesia ke Inggris"
+                    >
+                      {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-amber-600" />}
+                      <span>⚡ Terjemahkan (ID &rarr; EN)</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isTranslating}
+                      onClick={() => handleAutoTranslatePartners('en')}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors disabled:opacity-50"
+                      title="Terjemahkan Teks Mitra dari Inggris ke Indonesia"
+                    >
+                      {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-indigo-600" />}
+                      <span>⚡ Terjemahkan (EN &rarr; ID)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addPartnerItem}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Mitra Baru</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveSections}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Perubahan</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section Heading Settings */}
+                <div className="mt-6 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">
+                    Teks Judul & Ringkasan Halaman Mitra
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Kicker / Label Atas (ID)
+                      </label>
+                      <input
+                        type="text"
+                        value={kicker.id}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              kicker: { ...kicker, id: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Kicker / Top Label (EN)
+                      </label>
+                      <input
+                        type="text"
+                        value={kicker.en}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              kicker: { ...kicker, en: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Judul Utama (ID)
+                      </label>
+                      <input
+                        type="text"
+                        value={title.id}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              title: { ...title, id: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Main Title (EN)
+                      </label>
+                      <input
+                        type="text"
+                        value={title.en}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              title: { ...title, en: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Subjudul (ID)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={subtitle.id}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              subtitle: { ...subtitle, id: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Subtitle (EN)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={subtitle.en}
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              subtitle: { ...subtitle, en: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Teks Ringkasan Negara Mitra (ID)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={summary.id}
+                        placeholder="Kemitraan institusi aktif di Australia, Jepang, Jerman, Malaysia..."
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              summary: { ...summary, id: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                        Partner Countries Summary Text (EN)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={summary.en}
+                        placeholder="Active institutional partnerships spanning Australia, Japan, Germany..."
+                        onChange={(e) => {
+                          setSiteDraft({
+                            ...siteDraft,
+                            partners: {
+                              ...basePartners,
+                              summary: { ...summary, en: e.target.value },
+                            },
+                          });
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Partner Items List */}
+              <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-heading font-bold text-xl text-slate-900">
+                      Daftar Logo & Informasi Mitra ({partnerItems.length})
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Unggah logo, sesuaikan nama universitas, negara asal, dan tautan website resmi.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addPartnerItem}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase transition-colors self-start sm:self-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Mitra Baru</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {partnerItems.map((partner, index) => (
+                    <div
+                      key={partner.id || index}
+                      className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 relative group hover:border-unram-300 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-unram-900 bg-unram-100/70 px-2.5 py-1 rounded-lg">
+                            Mitra #{index + 1}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-600 truncate max-w-[180px]">
+                            {partner.name || '(Belum dinamai)'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePartnerItem(partner.id)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                          title="Hapus mitra ini"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+
+                      {/* Logo Preview & Upload */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                          Logo Institusi
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <div className="w-28 h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-2 relative overflow-hidden flex-shrink-0 shadow-xs">
+                            {partner.logo ? (
+                              <Image
+                                src={mediaUrl(partner.logo)}
+                                alt={partner.name || 'Logo'}
+                                width={100}
+                                height={40}
+                                className="object-contain max-h-12 w-auto"
+                              />
+                            ) : (
+                              <span className="text-[10px] text-slate-400 text-center">Tidak ada logo</span>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <input
+                              type="text"
+                              value={partner.logo}
+                              placeholder="/partners/partner-1.svg atau https://..."
+                              onChange={(e) => {
+                                const updated = [...partnerItems];
+                                updated[index] = { ...updated[index], logo: e.target.value };
+                                setSiteDraft({
+                                  ...siteDraft,
+                                  partners: { ...basePartners, items: updated },
+                                });
+                              }}
+                              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono"
+                            />
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-unram-900 hover:bg-unram-800 text-white text-xs font-bold transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Unggah Logo (PNG/WebP/JPG)</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) =>
+                                  handleImageFile(e, (url) => {
+                                    const updated = [...partnerItems];
+                                    updated[index] = { ...updated[index], logo: url };
+                                    setSiteDraft({
+                                      ...siteDraft,
+                                      partners: { ...basePartners, items: updated },
+                                    });
+                                  })
+                                }
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Partner Name */}
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                          Nama Universitas / Institusi
+                        </label>
+                        <input
+                          type="text"
+                          value={partner.name}
+                          placeholder="mis. University of Western Australia"
+                          onChange={(e) => {
+                            const updated = [...partnerItems];
+                            updated[index] = { ...updated[index], name: e.target.value };
+                            setSiteDraft({
+                              ...siteDraft,
+                              partners: { ...basePartners, items: updated },
+                            });
+                          }}
+                          className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-medium"
+                        />
+                      </div>
+
+                      {/* Partner Country & Website */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                            Negara Asal (Opsional)
+                          </label>
+                          <input
+                            type="text"
+                            value={partner.country || ''}
+                            placeholder="mis. Australia, Jepang"
+                            onChange={(e) => {
+                              const updated = [...partnerItems];
+                              updated[index] = { ...updated[index], country: e.target.value };
+                              setSiteDraft({
+                                ...siteDraft,
+                                partners: { ...basePartners, items: updated },
+                              });
+                            }}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                            Website Resmi (Opsional)
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={partner.url || ''}
+                              placeholder="https://..."
+                              onChange={(e) => {
+                                const updated = [...partnerItems];
+                                updated[index] = { ...updated[index], url: e.target.value };
+                                setSiteDraft({
+                                  ...siteDraft,
+                                  partners: { ...basePartners, items: updated },
+                                });
+                              }}
+                              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                            />
+                            {partner.url && partner.url.startsWith('http') && (
+                              <a
+                                href={partner.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 text-slate-500 hover:text-unram-900 hover:bg-slate-200 rounded-lg transition-colors flex-shrink-0"
+                                title="Buka tautan website mitra"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Partnership CTA Banner Settings */}
+              <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-5">
+                <div className="pb-3 border-b border-slate-100">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-unram-900">
+                    Pengaturan Banner Ajakan Kemitraan (CTA Bar)
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Banner di bagian bawah daftar mitra yang mengajak universitas atau institusi lain untuk berkolaborasi.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Judul Banner (ID)
+                    </label>
+                    <input
+                      type="text"
+                      value={becomeTitle?.id || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerTitle: { ...(becomeTitle || {}), id: e.target.value, en: becomeTitle?.en || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Banner Title (EN)
+                    </label>
+                    <input
+                      type="text"
+                      value={becomeTitle?.en || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerTitle: { ...(becomeTitle || {}), en: e.target.value, id: becomeTitle?.id || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Deskripsi Banner (ID)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={becomeDesc?.id || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerDesc: { ...(becomeDesc || {}), id: e.target.value, en: becomeDesc?.en || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Banner Description (EN)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={becomeDesc?.en || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerDesc: { ...(becomeDesc || {}), en: e.target.value, id: becomeDesc?.id || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Teks Tombol (ID)
+                    </label>
+                    <input
+                      type="text"
+                      value={becomeBtn?.id || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerBtn: { ...(becomeBtn || {}), id: e.target.value, en: becomeBtn?.en || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Button Text (EN)
+                    </label>
+                    <input
+                      type="text"
+                      value={becomeBtn?.en || ''}
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerBtn: { ...(becomeBtn || {}), en: e.target.value, id: becomeBtn?.id || '' },
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                      Tautan Tombol (URL / Anchor)
+                    </label>
+                    <input
+                      type="text"
+                      value={becomeUrl}
+                      placeholder="#contact"
+                      onChange={(e) => {
+                        setSiteDraft({
+                          ...siteDraft,
+                          partners: {
+                            ...basePartners,
+                            becomePartnerUrl: e.target.value,
+                          },
+                        });
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Action Bar */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveSections}
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan Mitra</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ==================== TAB 6: FAQ (DYNAMIC ADD/REMOVE & AUTO-TRANSLATE) ==================== */}
         {activeTab === 'faq' && (

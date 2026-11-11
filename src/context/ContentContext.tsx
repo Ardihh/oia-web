@@ -68,6 +68,26 @@ export interface AdmissionStepItem {
   desc: { id: string; en: string };
 }
 
+export interface PartnerItem {
+  id: string;
+  name: string;
+  logo: string;
+  url?: string;
+  country?: string;
+}
+
+export interface PartnersSection {
+  kicker: { id: string; en: string };
+  title: { id: string; en: string };
+  subtitle: { id: string; en: string };
+  summary: { id: string; en: string };
+  items: PartnerItem[];
+  becomePartnerTitle?: { id: string; en: string };
+  becomePartnerDesc?: { id: string; en: string };
+  becomePartnerBtn?: { id: string; en: string };
+  becomePartnerUrl?: string;
+}
+
 export interface SiteContent {
   schemaVersion?: number;
   updatedAt?: string;
@@ -129,6 +149,7 @@ export interface SiteContent {
   };
   guides: GuideItem[];
   news: NewsArticle[];
+  partners?: PartnersSection;
 }
 
 export const defaultGuides: GuideItem[] = [
@@ -247,6 +268,46 @@ export const defaultNews: NewsArticle[] = [
     author: 'Divisi Layanan Mahasiswa Asing KUI',
   },
 ];
+
+export const defaultPartners: PartnersSection = {
+  kicker: {
+    id: 'Jejaring Kolaborasi',
+    en: 'Global Network',
+  },
+  title: {
+    id: 'Mitra Universitas & Institusi Internasional',
+    en: 'Partner Universities & Academic Consortia',
+  },
+  subtitle: {
+    id: 'Kami bangga berkolaborasi dengan institusi pendidikan tinggi terkemuka dan konsorsium global dalam memajukan tridharma perguruan tinggi.',
+    en: 'We are proud to collaborate with esteemed international higher education institutions and networks to advance research and learning.',
+  },
+  summary: {
+    id: 'Kemitraan institusi aktif di Australia, Jepang, Jerman, Malaysia, Inggris, Amerika Serikat, dan 20+ negara mitra lainnya.',
+    en: 'Active institutional partnerships spanning Australia, Japan, Germany, Malaysia, United Kingdom, United States, and 20+ countries.',
+  },
+  items: [
+    { id: 'partner-1', name: 'University of Western Australia', logo: '/partners/partner-1.svg', url: 'https://www.uwa.edu.au', country: 'Australia' },
+    { id: 'partner-2', name: 'Hiroshima University', logo: '/partners/partner-2.svg', url: 'https://www.hiroshima-u.ac.jp', country: 'Jepang' },
+    { id: 'partner-3', name: 'Universiti Malaya', logo: '/partners/partner-3.svg', url: 'https://www.um.edu.my', country: 'Malaysia' },
+    { id: 'partner-4', name: 'Goethe University Frankfurt', logo: '/partners/partner-4.svg', url: 'https://www.uni-frankfurt.de', country: 'Jerman' },
+    { id: 'partner-5', name: 'University of Nottingham', logo: '/partners/partner-5.svg', url: 'https://www.nottingham.ac.uk', country: 'Inggris' },
+    { id: 'partner-6', name: 'Michigan State University', logo: '/partners/partner-6.svg', url: 'https://msu.edu', country: 'Amerika Serikat' },
+  ],
+  becomePartnerTitle: {
+    id: 'Tertarik Bermitra dengan Universitas Mataram?',
+    en: 'Interested in Partnering with Universitas Mataram?',
+  },
+  becomePartnerDesc: {
+    id: 'Kami membuka peluang kerja sama dalam riset kepulauan, pertukaran pelajar, dan program transfer kredit.',
+    en: 'We actively welcome collaborative proposals in island biodiversity, marine science, student exchange, and credit transfer.',
+  },
+  becomePartnerBtn: {
+    id: 'Inisiasi Kerja Sama (MoU)',
+    en: 'Initiate Partnership (MoU)',
+  },
+  becomePartnerUrl: '#contact',
+};
 
 export const defaultSiteContent: SiteContent = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -566,6 +627,7 @@ export const defaultSiteContent: SiteContent = {
   },
   guides: defaultGuides,
   news: defaultNews,
+  partners: defaultPartners,
 };
 
 interface ContentContextType {

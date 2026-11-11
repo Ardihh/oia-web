@@ -83,6 +83,13 @@ export function validateSiteContent(data: any): ValidationResult {
     errors.push('Bagian "admissionSteps" harus berupa array langkah.');
   }
 
+  // 10. Partners
+  if (data.partners !== undefined && typeof data.partners !== 'object') {
+    errors.push('Bagian "partners" harus berupa objek.');
+  } else if (data.partners && data.partners.items !== undefined && !Array.isArray(data.partners.items)) {
+    errors.push('Bagian "partners.items" harus berupa daftar array mitra.');
+  }
+
   if (errors.length > 0) {
     return {
       valid: false,
@@ -128,6 +135,15 @@ export function validateSiteContent(data: any): ValidationResult {
     },
     guides: Array.isArray(data.guides) ? data.guides : defaultSiteContent.guides,
     news: Array.isArray(data.news) ? data.news : defaultSiteContent.news,
+    partners: data.partners && typeof data.partners === 'object'
+      ? {
+          ...defaultSiteContent.partners,
+          ...data.partners,
+          items: Array.isArray(data.partners?.items)
+            ? data.partners.items
+            : (defaultSiteContent.partners?.items || []),
+        }
+      : defaultSiteContent.partners,
   };
 
   return {
