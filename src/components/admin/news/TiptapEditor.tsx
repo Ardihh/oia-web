@@ -47,6 +47,8 @@ export function TiptapEditor({
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressError, setCompressError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -139,9 +141,6 @@ export function TiptapEditor({
     setImagePreview(null);
     setShowImageModal(true);
   };
-
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [compressError, setCompressError] = useState<string | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
