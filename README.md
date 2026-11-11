@@ -21,30 +21,35 @@ Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, **next
 
 ---
 
-## 🔐 Admin Portal (/admin)
+## 🔐 Portal Admin CMS & Supabase Backend (/admin)
 
-Website ini dilengkapi dengan **Portal Admin visual khusus** di rute `/admin` (atau `/id/admin/` dan `/en/admin/`):
+Website ini dilengkapi dengan **Portal Admin CMS visual modern** di rute `/admin` (atau `/[locale]/admin`):
 
-- **URL Akses**: `http://localhost:3000/admin` (atau tautan *"Portal Admin"* di footer website).
-- **Kunci Akses (Passcode)**: `unram2026` (dapat diubah di `src/app/[locale]/admin/page.tsx`).
+- **URL Akses**: `https://io.unram.ac.id/admin` (atau `/admin` di localhost).
+- **Otentikasi**: Supabase Authentication (Email & Password), diverifikasi dengan fungsi database `is_admin()` dan tabel `admin_users`.
+- **Panduan Setup Supabase**: Lihat petunjuk langkah demi langkah di [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
-### Fitur Portal Admin:
-1. **Formulir Berita Bilingual (ID & EN)**:
-   - Input judul, tanggal publikasi, kategori, dan ringkasan berita secara berdampingan untuk Bahasa Indonesia & Bahasa Inggris.
-2. **Pilih & Unggah Foto**:
-   - Memasukkan nama file (contoh: `/images/news-1.jpg`) atau memilih langsung foto dari komputer (otomatis dipratinjau secara instan).
-3. **Pratinjau Kartu Real-Time (Live Card Preview)**:
-   - Menampilkan kartu berita dengan styling yang identik dengan tampilan di halaman utama sebelum diterbitkan.
-4. **Langsung Tampil di Website (Live Sync)**:
-   - Berita yang diterbitkan atau diedit akan langsung aktif dan muncul di halaman utama browser.
-5. **Tombol "Salin JSON" (One-Click Sync)**:
-   - Menyediakan tombol cepat untuk menyalin format JSON terstandar jika ingin memperbarui file `messages/id.json` dan `messages/en.json` untuk *permanent build* di server kampus.
+### Arsitektur Penyimpanan & Alur Publikasi:
+1. **Draf Server Real-Time (`site_content_draft`)**:
+   - Seluruh perubahan konten, berita, panduan, dan banner disimpan otomatis ke database server dengan debounce ~2 detik dan pengecekan konkurensi versi (*optimistic concurrency*).
+2. **Publikasi Instan ke Pengunjung (`site_content_published`)**:
+   - Menekan tombol **Publikasikan** akan memicu fungsi RPC `publish_site_content()`, yang menyalin draf ke tabel publikasi live dan mencatat arsip riwayat versi secara otomatis.
+   - Pengunjung umum **hanya membaca** tabel `site_content_published` via RLS publik tanpa kemampuan menulis.
+3. **Riwayat 30 Versi Publikasi (`site_content_versions`)**:
+   - Setiap publikasi mencatat cap waktu, ID admin, dan catatan rilis. Admin dapat memulihkan versi sebelumnya kapan saja ke draf kerja.
+4. **Media Storage Supabase (`site-media`)**:
+   - File gambar dikompresi di browser (maks. 1600px, WebP ~0.82) lalu diunggah ke bucket `site-media/images/<hash>.<ext>`.
+   - File PDF dan buku panduan diunggah ke `site-media/files/<hash>.<ext>` (hingga 10 MB). File SVG ditolak demi keamanan XSS.
+5. **Rantai Fallback Offline**:
+   - Klien membaca Supabase Live (`site_content_published`) → Snapshot lokal `/content/site-content.json` → Konten bawaan terintegrasi (Bundled Defaults). Website tidak akan pernah *crash* jika jaringan internet server mengalami gangguan.
 
 ---
 
 ## 🛠 Tech Stack & Architecture
 
 - **Framework**: Next.js 15+ (App Router, Static Export `output: 'export'`)
+- **Backend / Database**: Supabase (PostgreSQL, Row Level Security, RPC Security Definer, Storage Bucket `site-media`)
+- **Authentication**: Supabase Auth (Email + Password)
 - **Language**: TypeScript (Strict Mode)
 - **Styling**: Tailwind CSS with custom UNRAM Blue (`#0C1D9D`) 50–950 scale and warm Amber/Gold accent (`#F59E0B`)
 - **Internationalization (i18n)**: `next-intl` (Pre-rendered bilingual routes `/id` and `/en`, zero-latency root redirect)

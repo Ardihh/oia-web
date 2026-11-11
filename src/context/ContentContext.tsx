@@ -1,8 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getDraftFromDb, saveDraftToDb, resolveDraftBlobs } from '@/lib/db';
 import { validateSiteContent, CURRENT_SCHEMA_VERSION } from '@/lib/schemaValidator';
+import {
+  getPublishedContent,
+  getDraft,
+  checkIsAdmin,
+  publish,
+  getSupabase,
+  mediaUrl,
+} from '@/lib/supabase';
 
 export interface StatItem {
   id: string;
@@ -566,6 +573,7 @@ interface ContentContextType {
   updateContent: (newContent: SiteContent) => void;
   resetContent: () => void;
   isAdminPreview: boolean;
+  mediaUrl: (path: string | undefined | null) => string;
 }
 
 const ContentContext = createContext<ContentContextType | undefined>(undefined);
@@ -574,10 +582,15 @@ export function isSiteContentValid(data: any): boolean {
   return validateSiteContent(data).valid;
 }
 
+const INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 60 minutes
+
 export function ContentProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<SiteContent>(defaultSiteContent);
   const [isAdminPreview, setIsAdminPreview] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [isDraftDiffers, setIsDraftDiffers] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishSuccessMsg, setPublishSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -594,8 +607,12 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     } catch {}
   };
 
-  const handleExitAdminPreview = () => {
+  const handleExitAdminPreview = async () => {
     try {
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       sessionStorage.removeItem('unram_admin_auth');
       localStorage.removeItem('unram_admin_auth');
       sessionStorage.removeItem('unram_hide_preview_banner');
@@ -604,47 +621,109 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         window.dispatchEvent(new Event('unram_content_changed'));
         window.location.reload();
       }
-    } catch {}
+    } catch {
+      window.location.reload();
+    }
+  };
+
+  const handleQuickPublish = async () => {
+    if (isPublishing) return;
+    setIsPublishing(true);
+    setPublishSuccessMsg(null);
+    try {
+      const res = await publish('Dipublikasikan dari banner pratinjau');
+      if (res.success) {
+        setIsDraftDiffers(false);
+        setPublishSuccessMsg('Terpublikasi live!');
+        setTimeout(() => setPublishSuccessMsg(null), 3500);
+        window.dispatchEvent(new Event('unram_content_changed'));
+      } else {
+        alert(`Gagal mempublikasikan: ${res.error}`);
+      }
+    } catch (e: any) {
+      alert(`Gagal mempublikasikan: ${e?.message || 'Error'}`);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   useEffect(() => {
-    // 1. Check if admin is currently authenticated in this browser session
-    const checkAdminAuth = () => {
+    // 60-Minute Inactivity Auto Sign-Out tracker
+    const recordActivity = () => {
       try {
-        return (
-          sessionStorage.getItem('unram_admin_auth') === 'true' ||
-          localStorage.getItem('unram_admin_auth') === 'true'
-        );
-      } catch {
-        return false;
-      }
+        localStorage.setItem('unram_last_activity', Date.now().toString());
+      } catch {}
     };
 
-    const loadContent = async () => {
-      const isAdmin = checkAdminAuth();
-      setIsAdminPreview(isAdmin);
-
-      if (isAdmin) {
-        // Admin preview mode: read working draft from IndexedDB
-        try {
-          const draft = await getDraftFromDb();
-          if (draft) {
-            const resolved = await resolveDraftBlobs(draft);
-            setContent(resolved);
-            return;
+    const checkInactivity = async () => {
+      try {
+        const last = localStorage.getItem('unram_last_activity');
+        if (last && Date.now() - Number(last) > INACTIVITY_LIMIT_MS) {
+          const sb = getSupabase();
+          if (sb) {
+            await sb.auth.signOut();
+            setIsAdminPreview(false);
+            window.location.reload();
           }
-        } catch (e) {
-          console.warn('Failed to load draft from IndexedDB:', e);
+        }
+      } catch {}
+    };
+
+    recordActivity();
+    window.addEventListener('pointerdown', recordActivity);
+    window.addEventListener('keydown', recordActivity);
+    window.addEventListener('scroll', recordActivity, { passive: true });
+    const inactivityInterval = setInterval(checkInactivity, 60000); // check every 1 min
+
+    // Load content following strict fallback chain
+    const loadContent = async () => {
+      const isPublicViewForced =
+        typeof window !== 'undefined' && window.location.search.includes('view=public');
+
+      if (!isPublicViewForced) {
+        const isAdmin = await checkIsAdmin();
+        if (isAdmin) {
+          setIsAdminPreview(true);
+          try {
+            const draftData = await getDraft();
+            if (draftData && draftData.content) {
+              setContent(draftData.content);
+
+              // Check if draft differs from published
+              const published = await getPublishedContent();
+              if (published) {
+                const differs = JSON.stringify(draftData.content) !== JSON.stringify(published);
+                setIsDraftDiffers(differs);
+              } else {
+                setIsDraftDiffers(true); // No published version yet
+              }
+              return;
+            }
+          } catch (e) {
+            console.warn('Failed to load server draft:', e);
+          }
         }
       }
 
-      // Public visitor mode (or fallback): NEVER read localStorage or IndexedDB!
-      // Fetch /content/site-content.json from server with cache-busting
+      // Public visitor mode (or view=public)
+      setIsAdminPreview(false);
+
+      // 1. Primary: Read from Supabase site_content_published
+      try {
+        const pub = await getPublishedContent();
+        if (pub) {
+          setContent(pub);
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase published content unavailable, using static fallback:', err);
+      }
+
+      // 2. Secondary fallback: Static snapshot /content/site-content.json
       try {
         const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
         const fetchUrl = `${basePath}/content/site-content.json?v=${Date.now()}`;
         const res = await fetch(fetchUrl, { cache: 'no-cache' });
-
         if (res.ok) {
           const json = await res.json();
           const validation = validateSiteContent(json);
@@ -654,104 +733,106 @@ export function ContentProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch {
-        // Silently keep default bundled content if fetch fails or server file not yet uploaded
+        // Silently fallback to bundled default
       }
 
-      // Default fallback
+      // 3. Final safety fallback: Bundled default
       setContent(defaultSiteContent);
     };
 
     loadContent();
 
-    // Real-time sync listener when admin modifies or saves draft
-    const handleSync = async () => {
-      if (checkAdminAuth()) {
-        try {
-          const draft = await getDraftFromDb();
-          if (draft) {
-            const resolved = await resolveDraftBlobs(draft);
-            setContent(resolved);
-            setIsAdminPreview(true);
-          }
-        } catch {}
-      } else {
-        setIsAdminPreview(false);
-      }
-    };
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'unram_draft_timestamp' || e.key === 'unram_admin_auth') {
-        handleSync();
-      }
+    const handleSync = () => {
+      loadContent();
     };
 
     window.addEventListener('unram_content_changed', handleSync);
-    window.addEventListener('storage', handleStorageChange);
     return () => {
+      window.removeEventListener('pointerdown', recordActivity);
+      window.removeEventListener('keydown', recordActivity);
+      window.removeEventListener('scroll', recordActivity);
+      clearInterval(inactivityInterval);
       window.removeEventListener('unram_content_changed', handleSync);
-      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
   const updateContent = (newContent: SiteContent) => {
     setContent(newContent);
-    saveDraftToDb(newContent).catch((err) => {
-      console.error('Failed to auto-save draft to IndexedDB:', err);
-    });
-
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
-      } catch {}
       window.dispatchEvent(new Event('unram_content_changed'));
     }
   };
 
   const resetContent = () => {
     setContent(defaultSiteContent);
-    saveDraftToDb(defaultSiteContent).catch(console.error);
-
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
-      } catch {}
       window.dispatchEvent(new Event('unram_content_changed'));
     }
   };
 
   return (
-    <ContentContext.Provider value={{ content, updateContent, resetContent, isAdminPreview }}>
+    <ContentContext.Provider value={{ content, updateContent, resetContent, isAdminPreview, mediaUrl }}>
       {isAdminPreview && !isBannerDismissed && (
-        <div className="bg-slate-900 text-white px-4 py-2 text-xs font-medium flex items-center justify-between sticky top-0 z-[60] border-b border-slate-800 shadow-md animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-medium flex flex-wrap items-center justify-between sticky top-0 z-[60] border-b border-slate-800 shadow-lg animate-in fade-in duration-150 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
               Mode Admin Aktif
             </span>
-            <span className="text-slate-300 truncate hidden md:inline">
-              Menampilkan draf kerja Anda (Hanya terlihat di browser ini, bukan pengunjung umum).
+            <span className="text-slate-300 truncate">
+              {isDraftDiffers ? (
+                <span className="text-amber-300 font-medium">
+                  Draf server memiliki perubahan yang belum dipublikasikan ke publik.
+                </span>
+              ) : (
+                <span className="text-emerald-400">
+                  Draf kerja identik dengan versi publik yang aktif.
+                </span>
+              )}
             </span>
+            {publishSuccessMsg && (
+              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] animate-in fade-in">
+                ✓ {publishSuccessMsg}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            {isDraftDiffers && (
+              <button
+                type="button"
+                onClick={handleQuickPublish}
+                disabled={isPublishing}
+                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isPublishing ? 'Mempublikasikan...' : 'Publikasikan Sekarang'}
+              </button>
+            )}
+            <a
+              href="?view=public"
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition-colors hidden sm:inline"
+              title="Lihat persis seperti yang dilihat pengunjung biasa"
+            >
+              Lihat Publik
+            </a>
             <a
               href="/admin"
-              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
+              className="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
             >
               Buka CMS
             </a>
             <button
               type="button"
               onClick={handleExitAdminPreview}
-              className="px-2.5 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold transition-colors"
-              title="Keluar dari sesi admin untuk melihat tampilan murni pengunjung biasa"
+              className="px-2.5 py-1 rounded bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold transition-colors"
+              title="Keluar dari sesi admin"
             >
               Keluar Sesi
             </button>
             <button
               type="button"
               onClick={handleDismissBanner}
-              className="p-1 text-slate-400 hover:text-white rounded-md transition-colors ml-1"
+              className="p-1 text-slate-400 hover:text-white rounded-md transition-colors"
               title="Sembunyikan banner ini"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -774,6 +855,7 @@ export function useSiteContent() {
       updateContent: () => {},
       resetContent: () => {},
       isAdminPreview: false,
+      mediaUrl: (p: string | undefined | null) => p || '',
     };
   }
   return context;

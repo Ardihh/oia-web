@@ -4,6 +4,7 @@ export default function AdminRedirectPage() {
       <head>
         <meta httpEquiv="refresh" content="0; url=/en/admin/" />
         <link rel="canonical" href="/en/admin/" />
+        <link rel="icon" href="/logo.png" />
         <title>Redirecting to Admin Portal - OIA Universitas Mataram</title>
       </head>
       <body className="bg-slate-50 flex items-center justify-center min-h-screen font-sans text-slate-700">

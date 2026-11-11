@@ -33,8 +33,7 @@ import {
   getTodayFormatted,
   plainTextToHtml,
 } from '@/lib/newsUtils';
-import { compressImage } from '@/lib/imageCompression';
-import { saveBlobToDb } from '@/lib/db';
+import { uploadMedia } from '@/lib/supabase';
 
 interface ArticleEditorProps {
   initialArticle?: NewsArticle | null;
@@ -331,18 +330,19 @@ export function ArticleEditor({
     }
   };
 
-  // Image Upload Handler (Compressed & saved to IndexedDB)
+  // Image Upload Handler (Compressed & saved to Supabase Storage)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      const result = await compressImage(file);
-      await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-      updateArticle({ image: result.dataUrl });
-      showToast(
-        `Foto sampul dikompresi (${Math.round(result.originalSize / 1024)} KB → ${Math.round(result.compressedSize / 1024)} KB)`
-      );
+      const result = await uploadMedia(file, 'images');
+      if (result.success && result.publicUrl) {
+        updateArticle({ image: result.publicUrl });
+        showToast('Foto sampul berhasil dikompresi dan diunggah ke storage.');
+      } else {
+        showToast(result.error || 'Gagal mengunggah gambar ke storage.', 'error');
+      }
     } catch (err: any) {
       showToast(err.message || 'Gagal memproses gambar.', 'error');
     }

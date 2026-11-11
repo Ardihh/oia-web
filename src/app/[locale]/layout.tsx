@@ -78,6 +78,11 @@ export async function generateMetadata({
       description,
       images: ['/images/hero-campus.jpg'],
     },
+    icons: {
+      icon: '/logo.png',
+      shortcut: '/logo.png',
+      apple: '/logo.png',
+    },
     robots: {
       index: true,
       follow: true,

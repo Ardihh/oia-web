@@ -39,6 +39,12 @@ import {
   FolderDown,
   AlertCircle,
   X,
+  Globe,
+  Activity,
+  History,
+  RotateCcw,
+  Send,
+  ExternalLink,
 } from 'lucide-react';
 import { Container } from '@/components/ui/Container';
 import {
@@ -75,17 +81,20 @@ import {
 import { validateSiteContent, downloadRawBackup } from '@/lib/schemaValidator';
 import { isValidHttpsUrl, isValidGoogleMapsEmbedUrl } from '@/lib/domPurify';
 import { translateText } from '@/lib/newsUtils';
-
-// SHA-256 hash of default passcode 'unram2026'
-const DEFAULT_PASSCODE_HASH = '47d6a9d851060c7e5a5037a8dfad149fbe0698199058b22f140086eeced8193a';
-
-async function computeSha256(str: string): Promise<string> {
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+import {
+  getSupabase,
+  getDraft,
+  saveDraft,
+  publish,
+  listVersions,
+  restoreVersionToDraft,
+  uploadMedia,
+  mediaUrl,
+  checkIsAdmin,
+  runSupabaseDiagnostics,
+  DiagnosticItem,
+  sanitizeAndUploadAllDataUrls,
+} from '@/lib/supabase';
 
 const PRESET_CATEGORIES = [
   { id: 'Program Mobilitas', en: 'Mobility Program' },
@@ -119,24 +128,69 @@ function getTodayFormattedDate() {
   };
 }
 
-type TabType = 'news' | 'guides' | 'hero' | 'about' | 'stats' | 'services' | 'faq' | 'contact' | 'export';
+type TabType =
+  | 'news'
+  | 'guides'
+  | 'hero'
+  | 'about'
+  | 'stats'
+  | 'services'
+  | 'faq'
+  | 'contact'
+  | 'publish'
+  | 'diagnostics'
+  | 'export';
 
 export default function AdminPage() {
   const locale = useLocale();
   const isEn = locale === 'en';
   const { content, updateContent, resetContent } = useSiteContent();
 
-  // Auth State
+  // Supabase Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [passcodeError, setPasscodeError] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<TabType>('news');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-
   const [mounted, setMounted] = useState(false);
+
+  // Draft & Concurrency State
+  const [draftVersion, setDraftVersion] = useState<number>(1);
+  const [isAutosaving, setIsAutosaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictMsg, setConflictMsg] = useState('');
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isDirtyRef = useRef(false);
+
+  // Publish & Versions State
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishNote, setPublishNote] = useState('');
+  const [publishDiffs, setPublishDiffs] = useState<string[]>([]);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null);
+  const [versionsList, setVersionsList] = useState<
+    Array<{ id: number; published_at: string; published_by?: string; note?: string }>
+  >([]);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(false);
+  const [isRestoringVersion, setIsRestoringVersion] = useState(false);
+  const [isDraftSameAsPublished, setIsDraftSameAsPublished] = useState(true);
+
+  // Diagnostics State
+  const [diagnosticsResults, setDiagnosticsResults] = useState<DiagnosticItem[]>([]);
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+
+  // Legacy Migration State
+  const [hasLegacyLocalData, setHasLegacyLocalData] = useState(false);
+  const [isMigratingLegacy, setIsMigratingLegacy] = useState(false);
+  const [legacyMigrationDone, setLegacyMigrationDone] = useState(false);
 
   // Section Content State (Draft)
   const [siteDraft, setSiteDraft] = useState<SiteContent>(content || defaultSiteContent);
@@ -183,154 +237,290 @@ export default function AdminPage() {
     getStorageEstimate().then(setStorageUsage).catch(() => {});
   };
 
-  // Check auth & load data on mount (with one-time localStorage to IndexedDB migration)
+  // Check Supabase Auth & load data on mount
   useEffect(() => {
     setMounted(true);
-    const savedAuth =
-      sessionStorage.getItem('unram_admin_auth') ||
-      localStorage.getItem('unram_admin_auth');
-    if (savedAuth === 'true') {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('unram_admin_auth', 'true');
-      localStorage.setItem('unram_admin_auth', 'true');
-    }
 
-    const initData = async () => {
+    const checkLegacyData = async () => {
       try {
-        const existingDraft = await getDraftFromDb();
-        if (!existingDraft) {
-          // Check for legacy localStorage content
-          const legacyContentRaw = localStorage.getItem('unram_site_content_v4');
-          const legacyNewsRaw = localStorage.getItem('unram_custom_news');
-
-          let initial: SiteContent = defaultSiteContent;
-          let hadLegacy = false;
-
-          if (legacyContentRaw) {
-            try {
-              const parsed = JSON.parse(legacyContentRaw);
-              const val = validateSiteContent(parsed);
-              if (val.valid && val.sanitizedContent) {
-                initial = val.sanitizedContent;
-                hadLegacy = true;
-              }
-            } catch {}
-          }
-
-          if (legacyNewsRaw) {
-            try {
-              const parsedNews = JSON.parse(legacyNewsRaw);
-              if (Array.isArray(parsedNews)) {
-                initial.news = parsedNews;
-                hadLegacy = true;
-              }
-            } catch {}
-          }
-
-          await saveDraftToDb(initial);
-          const resolvedInitial = await resolveDraftBlobs(initial);
-          setSiteDraft(resolvedInitial);
-          if (Array.isArray(resolvedInitial.news)) setNewsList(resolvedInitial.news);
-
-          if (hadLegacy) {
-            showToast('Draf lama dari penyimpanan lokal berhasil dimigrasikan ke IndexedDB.');
-          }
-        } else {
-          const resolved = await resolveDraftBlobs(existingDraft);
-          setSiteDraft(resolved);
-          if (Array.isArray(resolved.news)) setNewsList(resolved.news);
+        const legacyLocal = localStorage.getItem('unram_site_content_v4');
+        const legacyNews = localStorage.getItem('unram_custom_news');
+        const dbDraft = await getDraftFromDb();
+        if (legacyLocal || legacyNews || (dbDraft && dbDraft.hero)) {
+          setHasLegacyLocalData(true);
         }
-
-        // Load export metadata
-        const lastExport = await getMetadata('last_exported_at');
-        setLastExportedAt(lastExport);
-        const unexported = await getMetadata('has_unexported_changes');
-        setHasUnexportedChanges(Boolean(unexported));
-      } catch (err: any) {
-        setStorageError(`Gagal memuat database draf: ${err?.message || 'Unknown error'}`);
-      }
-
-      refreshStorage();
+      } catch {}
     };
 
-    initData();
+    const initAuth = async () => {
+      const supabase = getSupabase();
+      if (!supabase) return;
+
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+          const isAdmin = await checkIsAdmin();
+          if (isAdmin) {
+            setIsAuthenticated(true);
+            setCurrentUserEmail(sessionData.session.user.email || null);
+            sessionStorage.setItem('unram_admin_auth', 'true');
+            localStorage.setItem('unram_admin_auth', 'true');
+            await loadServerDraft();
+            await checkLegacyData();
+          } else {
+            await supabase.auth.signOut();
+            setIsAuthenticated(false);
+            setAuthError('Akun ini tidak memiliki akses admin (tidak terdaftar di tabel admin_users).');
+          }
+        }
+      } catch (err: any) {
+        console.warn('Init auth check error:', err);
+      }
+    };
+
+    initAuth();
+    refreshStorage();
   }, []);
 
-  // Inactivity Auto-Logout (60 minutes)
+  // 60-Minute Inactivity Auto Sign-Out
   useEffect(() => {
     if (!isAuthenticated) return;
-    let lastActivity = Date.now();
+    const INACTIVITY_MS = 60 * 60 * 1000;
 
     const onActivity = () => {
-      lastActivity = Date.now();
+      try {
+        localStorage.setItem('unram_admin_last_act', Date.now().toString());
+      } catch {}
     };
 
-    window.addEventListener('mousemove', onActivity);
+    onActivity();
+    window.addEventListener('pointerdown', onActivity);
     window.addEventListener('keydown', onActivity);
-    window.addEventListener('click', onActivity);
+    window.addEventListener('scroll', onActivity, { passive: true });
 
-    const interval = setInterval(() => {
-      if (Date.now() - lastActivity > 60 * 60 * 1000) {
-        setIsAuthenticated(false);
-        sessionStorage.removeItem('unram_admin_auth');
-        alert(
-          isEn
-            ? 'Admin session expired automatically after 60 minutes of inactivity.'
-            : 'Sesi admin berakhir otomatis setelah 60 menit inaktivitas.'
-        );
-      }
-    }, 30000);
+    const interval = setInterval(async () => {
+      try {
+        const last = Number(localStorage.getItem('unram_admin_last_act') || '0');
+        if (Date.now() - last > INACTIVITY_MS) {
+          const supabase = getSupabase();
+          if (supabase) await supabase.auth.signOut();
+          setIsAuthenticated(false);
+          sessionStorage.removeItem('unram_admin_auth');
+          localStorage.removeItem('unram_admin_auth');
+          alert('Sesi admin berakhir otomatis setelah 60 menit inaktivitas.');
+          window.location.reload();
+        }
+      } catch {}
+    }, 60000);
 
     return () => {
-      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('pointerdown', onActivity);
       window.removeEventListener('keydown', onActivity);
-      window.removeEventListener('click', onActivity);
+      window.removeEventListener('scroll', onActivity);
       clearInterval(interval);
     };
-  }, [isAuthenticated, isEn]);
+  }, [isAuthenticated]);
 
-  // Warn on leaving with unexported changes
+  // Warn on leaving with unsaved server draft changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnexportedChanges) {
+      if (isDirtyRef.current || isAutosaving) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnexportedChanges]);
+  }, [isAutosaving]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Load working draft from Supabase
+  const loadServerDraft = async () => {
     try {
-      const computed = await computeSha256(passcode.trim());
-      const targetHash = (process.env.NEXT_PUBLIC_ADMIN_PASSCODE_HASH || DEFAULT_PASSCODE_HASH)
-        .toLowerCase()
-        .trim();
-
-      if (computed === targetHash) {
-        setIsAuthenticated(true);
-        sessionStorage.setItem('unram_admin_auth', 'true');
-        localStorage.setItem('unram_admin_auth', 'true');
-        setPasscodeError(false);
-        window.dispatchEvent(new Event('unram_content_changed'));
+      const draftData = await getDraft();
+      if (draftData) {
+        setSiteDraft(draftData.content);
+        setDraftVersion(draftData.version);
+        if (Array.isArray(draftData.content.news)) setNewsList(draftData.content.news);
+        if (draftData.updatedAt) {
+          setLastSavedTime(
+            new Date(draftData.updatedAt).toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })
+          );
+        }
+        await compareWithPublished(draftData.content);
       } else {
-        setPasscodeError(true);
+        // First-time server draft creation
+        const initRes = await saveDraft(defaultSiteContent, 0);
+        if (initRes.success) {
+          setDraftVersion(initRes.version);
+        }
+        await compareWithPublished(defaultSiteContent);
       }
-    } catch {
-      setPasscodeError(true);
+    } catch (err: any) {
+      console.error('Failed to load server draft:', err);
+      setSaveError('Gagal memuat draf dari server');
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('unram_admin_auth');
-    localStorage.removeItem('unram_admin_auth');
-    window.dispatchEvent(new Event('unram_content_changed'));
+  // Compare draft against published content to calculate diffs
+  const compareWithPublished = async (currentDraft: SiteContent) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      const { data } = await supabase
+        .from('site_content_published')
+        .select('content, published_at')
+        .eq('id', 'main')
+        .maybeSingle();
+
+      if (data && data.published_at) {
+        setLastPublishedAt(data.published_at);
+      }
+
+      if (!data || !data.content) {
+        setIsDraftSameAsPublished(false);
+        setPublishDiffs(['Konten publikasi awal belum dibuat di server']);
+        return;
+      }
+
+      const pub = data.content as SiteContent;
+      const diffs: string[] = [];
+
+      if (JSON.stringify(currentDraft.hero) !== JSON.stringify(pub.hero)) diffs.push('Hero & Banner');
+      if (JSON.stringify(currentDraft.about) !== JSON.stringify(pub.about)) diffs.push('Profil, Misi & Penerimaan (About)');
+      if (JSON.stringify(currentDraft.stats) !== JSON.stringify(pub.stats)) diffs.push('Statistik Dampak');
+      if (JSON.stringify(currentDraft.services) !== JSON.stringify(pub.services)) diffs.push('Layanan KUI');
+      if (JSON.stringify(currentDraft.faq) !== JSON.stringify(pub.faq)) diffs.push('Tanya Jawab (FAQ)');
+      if (JSON.stringify(currentDraft.contact) !== JSON.stringify(pub.contact)) diffs.push('Kontak & Alamat');
+      if (JSON.stringify(currentDraft.news) !== JSON.stringify(pub.news)) diffs.push('Berita & Kegiatan');
+      if (JSON.stringify(currentDraft.guides) !== JSON.stringify(pub.guides)) diffs.push('Buku Panduan & Dokumen');
+      if (JSON.stringify(currentDraft.admissionSteps) !== JSON.stringify(pub.admissionSteps)) diffs.push('Alur Pendaftaran');
+
+      setPublishDiffs(diffs);
+      setIsDraftSameAsPublished(diffs.length === 0);
+    } catch (err) {
+      console.warn('Error comparing with published:', err);
+    }
   };
 
-  // Save full site sections into IndexedDB
+  // Debounced Autosave (2 seconds) with optimistic concurrency
+  const scheduleAutosave = (newContent: SiteContent) => {
+    isDirtyRef.current = true;
+    setIsAutosaving(true);
+    setSaveError(null);
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await saveDraft(newContent, draftVersion);
+        if (res.conflict) {
+          setConflictMsg(res.error || 'Konflik versi terdeteksi.');
+          setShowConflictModal(true);
+          setIsAutosaving(false);
+          return;
+        }
+
+        if (res.success) {
+          setDraftVersion(res.version);
+          setLastSavedTime(
+            new Date().toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })
+          );
+          setSaveError(null);
+          isDirtyRef.current = false;
+          updateContent(newContent);
+          await compareWithPublished(newContent);
+        } else {
+          setSaveError(res.error || 'Gagal menyimpan draf ke server');
+        }
+      } catch (err: any) {
+        setSaveError(err?.message || 'Gagal menyimpan draf');
+      } finally {
+        setIsAutosaving(false);
+      }
+    }, 2000);
+  };
+
+  // Reload draft on concurrency conflict resolution
+  const handleReloadLatestDraft = async () => {
+    setShowConflictModal(false);
+    await loadServerDraft();
+    showToast('Draf versi terbaru berhasil dimuat dari server.');
+  };
+
+  // Handle Supabase Auth Login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsSigningIn(true);
+
+    try {
+      const supabase = getSupabase();
+      if (!supabase) {
+        setAuthError('Koneksi Supabase belum terkonfigurasi pada file environment (.env.local).');
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        setAuthError(error.message || 'Email atau password yang Anda masukkan salah.');
+        return;
+      }
+
+      const isAdmin = await checkIsAdmin();
+      if (!isAdmin) {
+        await supabase.auth.signOut();
+        setAuthError('Akun ini tidak memiliki akses admin (belum terdaftar di tabel admin_users).');
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setCurrentUserEmail(data.user?.email || null);
+      sessionStorage.setItem('unram_admin_auth', 'true');
+      localStorage.setItem('unram_admin_auth', 'true');
+      window.dispatchEvent(new Event('unram_content_changed'));
+
+      await loadServerDraft();
+      showToast('Berhasil masuk ke Dashboard Admin!');
+    } catch (err: any) {
+      setAuthError(err?.message || 'Terjadi kesalahan sistem saat masuk.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  // Handle Supabase Auth Logout
+  const handleLogout = async () => {
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      setIsAuthenticated(false);
+      setCurrentUserEmail(null);
+      sessionStorage.removeItem('unram_admin_auth');
+      localStorage.removeItem('unram_admin_auth');
+      window.dispatchEvent(new Event('unram_content_changed'));
+    } catch {
+      window.location.reload();
+    }
+  };
+
+  // Save full site sections into Supabase Server Draft
   const handleSaveSections = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
@@ -369,55 +559,69 @@ export default function AdminPage() {
       },
     };
 
+    setIsAutosaving(true);
+    setSaveError(null);
+
     try {
-      await saveDraftToDb(finalDraft);
-      updateContent(finalDraft);
-      setSiteDraft(finalDraft);
-      setHasUnexportedChanges(true);
-      await setMetadata('has_unexported_changes', true);
-      sessionStorage.setItem('unram_admin_auth', 'true');
-      localStorage.setItem('unram_admin_auth', 'true');
-      try {
-        localStorage.setItem('unram_draft_timestamp', Date.now().toString());
-      } catch {}
-      setSaveSuccess(true);
-      setStorageError(null);
-      refreshStorage();
-      setTimeout(() => setSaveSuccess(false), 3000);
+      const res = await saveDraft(finalDraft, draftVersion);
+      if (res.conflict) {
+        setConflictMsg(res.error || 'Konflik versi terdeteksi.');
+        setShowConflictModal(true);
+        return;
+      }
+
+      if (res.success) {
+        setDraftVersion(res.version);
+        setSiteDraft(finalDraft);
+        updateContent(finalDraft);
+        setLastSavedTime(
+          new Date().toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+        );
+        isDirtyRef.current = false;
+        setSaveSuccess(true);
+        await compareWithPublished(finalDraft);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setSaveError(res.error || 'Gagal menyimpan draf.');
+        alert(`Gagal menyimpan: ${res.error}`);
+      }
     } catch (err: any) {
-      setStorageError(err.message || 'Gagal menyimpan draf ke IndexedDB.');
-      alert(`Gagal menyimpan: ${err.message || 'Penyimpanan lokal bermasalah.'}`);
+      setSaveError(err.message || 'Error');
+      alert(`Gagal menyimpan draf: ${err.message}`);
+    } finally {
+      setIsAutosaving(false);
     }
   };
 
-  // Image File helper (compressed and stored as blob in IndexedDB)
+  // Image File helper: uploaded directly to Supabase Storage bucket 'site-media'
   const handleImageFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    onLoad: (pathOrUrl: string) => void
+    onLoad: (publicUrl: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const result = await compressImage(file);
-        await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-        onLoad(result.dataUrl);
-        setHasUnexportedChanges(true);
-        refreshStorage();
-        showToast(
-          `Gambar berhasil dikompresi (${Math.round(result.originalSize / 1024)} KB → ${Math.round(
-            result.compressedSize / 1024
-          )} KB)`
-        );
+        const result = await uploadMedia(file, 'images');
+        if (!result.success) {
+          alert(`Gagal mengunggah gambar: ${result.error}`);
+          return;
+        }
+        onLoad(result.publicUrl);
+        showToast('Gambar berhasil diunggah ke Supabase Storage!');
       } catch (err: any) {
         alert(err.message || 'Gagal memproses gambar.');
       }
     }
   };
 
-  // Document/PDF File helper
+  // Document/PDF File helper: uploaded directly to Supabase Storage bucket 'site-media'
   const handleDocumentFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    onLoad: (path: string, fileName: string, fileSizeStr: string) => void
+    onLoad: (publicUrl: string, fileName: string, fileSizeStr: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -427,26 +631,152 @@ export default function AdminPage() {
       const sizeStr = `${ext} • ${sizeMb} MB`;
 
       if (sizeBytes > 10 * 1024 * 1024) {
-        alert(
-          `Peringatan: Ukuran dokumen (${sizeMb} MB) melebihi 10 MB. File berukuran besar membutuhkan waktu unduh lebih lama bagi pengunjung.`
-        );
+        alert('Ukuran dokumen melebihi 10 MB (batas maksimum Supabase Storage).');
+        return;
       }
 
       try {
-        const arrayBuf = await file.arrayBuffer();
-        const hash = await computeContentHash(arrayBuf);
-        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-        const filename = `doc-${hash}.${fileExt}`;
-        const path = `/uploads/${filename}`;
-        await saveBlobToDb(path, file, filename, file.type || 'application/pdf');
-        onLoad(path, file.name, sizeStr);
-        setHasUnexportedChanges(true);
-        refreshStorage();
-        showToast('Dokumen berhasil diunggah ke draf lokal.');
+        const result = await uploadMedia(file, 'files');
+        if (!result.success) {
+          alert(`Gagal mengunggah berkas: ${result.error}`);
+          return;
+        }
+        onLoad(result.publicUrl, file.name, sizeStr);
+        showToast('Dokumen berhasil diunggah ke Supabase Storage!');
       } catch (err: any) {
         alert(err.message || 'Gagal mengunggah dokumen.');
       }
     }
+  };
+
+  // Publish Dialog & RPC triggers
+  const handleOpenPublishModal = async () => {
+    await compareWithPublished(siteDraft);
+    setPublishNote('');
+    setIsPublishModalOpen(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    setIsPublishing(true);
+    try {
+      const res = await publish(publishNote.trim() || undefined);
+      if (res.success) {
+        setIsPublishModalOpen(false);
+        setIsDraftSameAsPublished(true);
+        setPublishDiffs([]);
+        setLastPublishedAt(new Date().toISOString());
+        showToast('Konten berhasil dipublikasikan secara live ke seluruh pengunjung!');
+        window.dispatchEvent(new Event('unram_content_changed'));
+        await loadVersions();
+      } else {
+        alert(`Gagal mempublikasikan: ${res.error}`);
+      }
+    } catch (err: any) {
+      alert(`Gagal mempublikasikan: ${err?.message || 'Error'}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  // Load version history (30 latest versions)
+  const loadVersions = async () => {
+    setIsLoadingVersions(true);
+    try {
+      const list = await listVersions();
+      setVersionsList(list);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
+
+  // Restore archived version into draft
+  const handleRestoreVersion = async (versionId: number) => {
+    if (
+      !confirm(
+        `Pulihkan konten versi #${versionId} ke draf server? Catatan: Pemulihan ini memuat ke draf kerja dan TIDAK langsung mempublikasikan secara live.`
+      )
+    ) {
+      return;
+    }
+
+    setIsRestoringVersion(true);
+    try {
+      const res = await restoreVersionToDraft(versionId);
+      if (res.success && res.content) {
+        setSiteDraft(res.content);
+        if (Array.isArray(res.content.news)) setNewsList(res.content.news);
+        updateContent(res.content);
+        await loadServerDraft();
+        showToast(`Versi #${versionId} berhasil dimuat ke draf server.`);
+      } else {
+        alert(`Gagal memulihkan versi: ${res.error}`);
+      }
+    } catch (err: any) {
+      alert(`Gagal memulihkan versi: ${err?.message || 'Error'}`);
+    } finally {
+      setIsRestoringVersion(false);
+    }
+  };
+
+  // Run Supabase Diagnostics
+  const handleRunDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    try {
+      const results = await runSupabaseDiagnostics();
+      setDiagnosticsResults(results);
+    } finally {
+      setIsRunningDiagnostics(false);
+    }
+  };
+
+  // Legacy browser migration: Upload blobs/data URLs to Supabase Storage & save server draft
+  const handleMigrateLegacy = async () => {
+    setIsMigratingLegacy(true);
+    try {
+      let legacyDraft: SiteContent | null = await getDraftFromDb();
+
+      if (!legacyDraft) {
+        const localV4 = localStorage.getItem('unram_site_content_v4');
+        if (localV4) {
+          try {
+            legacyDraft = JSON.parse(localV4);
+          } catch {}
+        }
+      }
+
+      if (!legacyDraft) {
+        legacyDraft = siteDraft;
+      }
+
+      // Convert all base64 data URLs & blobs to Supabase Storage
+      const cleaned = await sanitizeAndUploadAllDataUrls(legacyDraft);
+      const res = await saveDraft(cleaned, draftVersion);
+
+      if (res.success) {
+        setDraftVersion(res.version);
+        setSiteDraft(cleaned);
+        if (Array.isArray(cleaned.news)) setNewsList(cleaned.news);
+        updateContent(cleaned);
+        setLegacyMigrationDone(true);
+        setHasLegacyLocalData(false);
+        showToast('Migrasi data browser lama ke Supabase berhasil diselesaikan!');
+      } else {
+        alert(`Gagal menyimpan hasil migrasi: ${res.error}`);
+      }
+    } catch (err: any) {
+      alert(`Gagal memigrasikan data: ${err?.message || 'Error'}`);
+    } finally {
+      setIsMigratingLegacy(false);
+    }
+  };
+
+  // Download snapshot site-content.json for fallback commit
+  const handleDownloadSnapshotFallback = () => {
+    downloadRawBackup(
+      JSON.stringify(siteDraft, null, 2),
+      'site-content.json'
+    );
+    showToast('Berkas site-content.json berhasil diunduh untuk snapshot cadangan.');
   };
 
   // ==================== AUTO TRANSLATION HANDLERS ====================
@@ -743,19 +1073,13 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
-
-    try {
-      await saveDraftToDb(updatedDraft);
-      setHasUnexportedChanges(true);
-      await setMetadata('has_unexported_changes', true);
-      refreshStorage();
-    } catch (err) {
-      console.error('Failed to save draft to IndexedDB:', err);
-    }
+    scheduleAutosave(updatedDraft);
 
     if (isPublish) {
       showToast(
-        isEn ? 'Article published successfully!' : 'Berita berhasil diterbitkan!'
+        isEn
+          ? 'Article saved to draft! Click "Publikasikan" to make it live.'
+          : 'Berita tersimpan di draf! Klik tombol "Publikasikan" di atas untuk rilis live.'
       );
       setNewsView('list');
       setEditingArticle(null);
@@ -775,15 +1099,7 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
-
-    try {
-      await saveDraftToDb(updatedDraft);
-      setHasUnexportedChanges(true);
-      await setMetadata('has_unexported_changes', true);
-      refreshStorage();
-    } catch (err) {
-      console.error('Failed to delete news from draft db:', err);
-    }
+    scheduleAutosave(updatedDraft);
 
     showToast(isEn ? 'Article deleted' : 'Berita berhasil dihapus');
   };
@@ -829,15 +1145,7 @@ export default function AdminPage() {
     };
     setSiteDraft(updatedDraft);
     updateContent(updatedDraft);
-
-    try {
-      await saveDraftToDb(updatedDraft);
-      setHasUnexportedChanges(true);
-      await setMetadata('has_unexported_changes', true);
-      refreshStorage();
-    } catch (err) {
-      console.error('Failed to save guide to draft db:', err);
-    }
+    scheduleAutosave(updatedDraft);
 
     resetGuideForm();
     setSaveSuccess(true);
@@ -861,15 +1169,7 @@ export default function AdminPage() {
       };
       setSiteDraft(updatedDraft);
       updateContent(updatedDraft);
-
-      try {
-        await saveDraftToDb(updatedDraft);
-        setHasUnexportedChanges(true);
-        await setMetadata('has_unexported_changes', true);
-        refreshStorage();
-      } catch (err) {
-        console.error('Failed to save guide deletion to draft db:', err);
-      }
+      scheduleAutosave(updatedDraft);
 
       if (editGuideId === id) resetGuideForm();
       setSaveSuccess(true);
@@ -1161,48 +1461,75 @@ export default function AdminPage() {
               <Lock className="w-7 h-7" aria-hidden="true" />
             </div>
             <h1 className="font-heading font-extrabold text-2xl text-slate-900">
-              Portal Admin KUI UNRAM
+              Portal Admin OIA UNRAM
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              CMS Visual Dinamis dengan Terjemahan Otomatis
+              Office of International Affairs CMS &bull; Supabase Auth
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label
-                htmlFor="admin-passcode"
-                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2"
+                htmlFor="admin-email"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
               >
-                Kunci Akses / Passcode
+                Email Admin
               </label>
               <input
-                id="admin-passcode"
-                type="password"
+                id="admin-email"
+                type="email"
                 required
-                placeholder="Masukkan kunci akses (default: unram2026)"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="admin.oia@unram.ac.id"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:border-unram-900 focus-visible:ring-2 focus-visible:ring-unram-900 transition-all"
               />
-              {passcodeError && (
-                <p className="text-xs text-rose-600 font-semibold mt-1.5">
-                  Kunci akses salah. Silakan coba lagi.
-                </p>
-              )}
             </div>
+
+            <div>
+              <label
+                htmlFor="admin-password"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+              >
+                Kata Sandi
+              </label>
+              <input
+                id="admin-password"
+                type="password"
+                required
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus-visible:border-unram-900 focus-visible:ring-2 focus-visible:ring-unram-900 transition-all"
+              />
+            </div>
+
+            {authError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                {authError}
+              </div>
+            )}
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98]"
+              disabled={isSigningIn}
+              className="w-full py-3.5 rounded-xl bg-unram-900 hover:bg-unram-800 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              Masuk ke Dashboard
+              {isSigningIn ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memverifikasi Akses...</span>
+                </>
+              ) : (
+                <span>Masuk ke Dashboard</span>
+              )}
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col items-center gap-3">
             <p className="text-xs text-slate-400 text-center leading-relaxed">
-              Gerbang kenyamanan untuk hosting statis. Pada server produksi universitas, lindungi direktori /admin dengan HTTP Basic Auth atau allowlist IP.
+              Kredensial dikelola terpusat di Supabase Authentication. Akses dibatasi secara ketat hanya untuk akun yang terdaftar di tabel <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-700">admin_users</code>.
             </p>
             <a
               href={`/${locale}/`}
@@ -1219,6 +1546,7 @@ export default function AdminPage() {
 
   // ==================== DASHBOARD SCREEN ====================
   const navTabs = [
+    { key: 'publish', label: 'Publikasi & Versi', icon: Globe },
     { key: 'news', label: 'Berita & Kegiatan', icon: Tag },
     { key: 'guides', label: 'Buku & File Panduan', icon: BookOpen },
     { key: 'hero', label: 'Hero & Banner', icon: Sparkles },
@@ -1227,6 +1555,7 @@ export default function AdminPage() {
     { key: 'services', label: 'Layanan KUI', icon: LayoutGrid },
     { key: 'faq', label: 'Tanya Jawab (FAQ)', icon: HelpCircle },
     { key: 'contact', label: 'Kontak & Alamat', icon: Phone },
+    { key: 'diagnostics', label: 'Diagnostik Supabase', icon: Activity },
     { key: 'export', label: 'Paket Publikasi & Cadangan', icon: Archive },
   ];
 
@@ -1235,56 +1564,67 @@ export default function AdminPage() {
   return (
     <div className={`bg-slate-50 text-slate-800 ${isEditingArticleView ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen pb-24'}`}>
       {/* Top Header */}
-      <header className="h-[60px] flex-shrink-0 bg-unram-950 text-white border-b border-unram-800 sticky top-0 z-50 shadow-md flex items-center">
+      <header className="h-[64px] flex-shrink-0 bg-unram-950 text-white border-b border-unram-800 sticky top-0 z-50 shadow-md flex items-center">
         <Container className="flex items-center justify-between w-full">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-xs">
               <Image src="/logo.png" alt="UNRAM" width={32} height={32} className="object-contain" />
             </div>
             <div>
               <h2 className="font-heading font-extrabold text-sm sm:text-base leading-tight text-white">
-                Dashboard Konten KUI UNRAM
+                Dashboard Konten OIA UNRAM
               </h2>
-              <p className="text-xs text-amber-300 font-semibold">
-                Universitas Mataram (Lombok, Indonesia)
+              <p className="text-xs text-amber-300 font-semibold truncate max-w-[200px] sm:max-w-none">
+                {currentUserEmail ? currentUserEmail : 'Office of International Affairs'}
               </p>
             </div>
           </div>
 
-          {/* Status & Storage indicators */}
-          <div className="hidden md:flex items-center gap-3 text-xs">
-            {hasUnexportedChanges ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-semibold animate-pulse">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>Ada perubahan belum diekspor</span>
+          {/* Status Indicators */}
+          <div className="hidden lg:flex items-center gap-3 text-xs">
+            {isAutosaving ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/30 font-semibold">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Menyimpan ke server...</span>
               </span>
-            ) : (
+            ) : saveError ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-400/20 text-rose-300 border border-rose-400/30 font-semibold">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>Belum tersimpan</span>
+              </span>
+            ) : isDraftSameAsPublished ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/20 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Tersinkronisasi</span>
+                <span>Sama dengan versi publik</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>Draf tersimpan di server &bull; Belum dipublikasikan</span>
               </span>
             )}
 
-            <span className="text-white/20">|</span>
-
-            <span className="text-slate-300 flex items-center gap-1.5">
-              <HardDrive className="w-3.5 h-3.5 text-slate-400" />
-              <span>
-                {storageUsage ? `${storageUsage.usedMb} MB` : '...'}
-              </span>
-            </span>
-
-            {lastExportedAt && (
+            {lastSavedTime && (
               <>
                 <span className="text-white/20">|</span>
-                <span className="text-slate-400 text-xs hidden lg:inline">
-                  Ekspor terakhir: {new Date(lastExportedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                <span className="text-slate-400 text-xs hidden xl:inline">
+                  Draf v{draftVersion} ({lastSavedTime})
                 </span>
               </>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleOpenPublishModal}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-sm active:scale-95"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Publikasikan</span>
+            </button>
+
             <a
               href={`/${locale}/`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition-colors"
@@ -1292,6 +1632,7 @@ export default function AdminPage() {
               <Eye className="w-3.5 h-3.5" aria-hidden="true" />
               <span className="hidden sm:inline">Lihat Website</span>
             </a>
+
             <button
               type="button"
               onClick={handleLogout}
@@ -1303,12 +1644,42 @@ export default function AdminPage() {
         </Container>
       </header>
 
+      {/* Legacy Migration Alert Banner */}
+      {hasLegacyLocalData && !legacyMigrationDone && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-2.5 text-xs font-medium flex items-center justify-between border-b border-amber-600 shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-slate-950 flex-shrink-0" />
+            <span>
+              <strong>Draf Lokal Terdeteksi:</strong> Ditemukan konten draf lama di penyimpanan peramban lokal ini. Ingin memigrasikan aset dan draf tersebut ke server Supabase?
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={isMigratingLegacy}
+            onClick={handleMigrateLegacy}
+            className="px-3 py-1 rounded bg-slate-950 hover:bg-slate-900 text-amber-300 font-bold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 flex-shrink-0"
+          >
+            {isMigratingLegacy ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Memigrasikan...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-3 h-3" />
+                <span>Migrasikan ke Supabase</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Success Notification Banner */}
       {saveSuccess && (
-        <div className="bg-emerald-600 text-white py-2.5 px-4 text-center text-xs font-bold shadow-sm flex items-center justify-center gap-2 animate-in fade-in duration-200">
+        <div className="bg-emerald-600 text-white py-2 px-4 text-center text-xs font-bold shadow-sm flex items-center justify-center gap-2 animate-in fade-in duration-200">
           <CheckCircle2 className="w-4 h-4" />
           <span>
-            Draf berhasil disimpan! Pratinjau draf aktif di website Anda. Untuk rilis ke publik umum di server, buka tab &ldquo;Paket Publikasi & Cadangan&rdquo; lalu buat paket ZIP.
+            Draf berhasil disimpan di server Supabase (v{draftVersion})! Klik &ldquo;Publikasikan&rdquo; untuk merilis ke pengunjung umum.
           </span>
         </div>
       )}
@@ -3161,6 +3532,167 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ==================== TAB: PUBLIKASI & VERSI ==================== */}
+        {activeTab === 'publish' && (
+          <div className="space-y-6">
+            {/* Card 1: Status Publikasi & Rilis Cepat */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-unram-900" />
+                    <span>Publikasi Live ke Server</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                    Setiap perubahan yang Anda simpan di mode admin langsung disimpan ke tabel draf server Supabase.
+                    Tekan tombol <strong>Publikasikan</strong> agar seluruh pengunjung website melihat konten terbaru secara instan.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenPublishModal}
+                  disabled={isPublishing}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-md transition-all disabled:opacity-50 flex-shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Publikasikan Sekarang</span>
+                </button>
+              </div>
+
+              {/* Status Comparison Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="block text-xs font-semibold text-slate-500 mb-1">Status Sinkronisasi Publik</span>
+                  {isDraftSameAsPublished ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Sama dengan versi publik
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      Ada perubahan belum rilis
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="block text-xs font-semibold text-slate-500 mb-1">Terakhir Dipublikasikan</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    {lastPublishedAt
+                      ? new Date(lastPublishedAt).toLocaleString('id-ID', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : 'Belum pernah dipublikasikan'}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="block text-xs font-semibold text-slate-500 mb-1">Versi Draf Server</span>
+                  <span className="text-xs font-bold text-slate-800">
+                    Versi #{draftVersion} {lastSavedTime ? `(Tersimpan ${lastSavedTime})` : ''}
+                  </span>
+                </div>
+              </div>
+
+              {/* Diffs alert if differences exist */}
+              {!isDraftSameAsPublished && publishDiffs.length > 0 && (
+                <div className="p-5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>Bagian dengan perubahan yang belum dipublikasikan:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {publishDiffs.map((diff, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 font-semibold text-[11px]"
+                      >
+                        {diff}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Card 2: Riwayat 30 Versi Publikasi */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <History className="w-5 h-5 text-unram-900" />
+                    <span>Riwayat Versi Publikasi (30 Terakhir)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Setiap kali tombol Publikasikan ditekan, server mencatat arsip konten lengkap. Anda dapat memulihkan versi sebelumnya kapan saja ke draf kerja.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isLoadingVersions}
+                  onClick={loadVersions}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingVersions ? 'animate-spin' : ''}`} />
+                  <span>Muat Riwayat</span>
+                </button>
+              </div>
+
+              {versionsList.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400">
+                  {isLoadingVersions ? 'Memuat riwayat versi...' : 'Belum ada riwayat publikasi di server, atau klik "Muat Riwayat" di atas.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 uppercase font-semibold text-[10px]">
+                        <th className="py-2.5 px-3">Versi</th>
+                        <th className="py-2.5 px-3">Waktu Rilis</th>
+                        <th className="py-2.5 px-3">Catatan Rilis</th>
+                        <th className="py-2.5 px-3 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {versionsList.map((ver) => (
+                        <tr key={ver.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-3 font-mono font-bold text-unram-900">
+                            #{ver.id}
+                          </td>
+                          <td className="py-3 px-3 text-slate-700">
+                            {new Date(ver.published_at).toLocaleString('id-ID', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </td>
+                          <td className="py-3 px-3 text-slate-600 italic">
+                            {ver.note || 'Publikasi rutin'}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              disabled={isRestoringVersion}
+                              onClick={() => handleRestoreVersion(ver.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-unram-50 hover:bg-unram-100 text-unram-900 font-bold transition-colors disabled:opacity-50"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>Pulihkan ke Draf</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ==================== TAB 8: PUBLISH BUNDLE & BACKUP ==================== */}
         {activeTab === 'export' && (
           <div className="space-y-6">
@@ -3297,6 +3829,29 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Card 2.5: Snapshot Cadangan Statis */}
+            <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                    <FileJson className="w-5 h-5 text-unram-900" />
+                    <span>Perbarui Snapshot Cadangan (site-content.json)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                    Unduh file snapshot draf saat ini yang dapat diletakkan di <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-700">public/content/site-content.json</code> sebagai cadangan offline statis yang disertakan pada saat kompilasi build website.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSnapshotFallback}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all flex-shrink-0"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh site-content.json</span>
+                </button>
+              </div>
+            </div>
+
             {/* Card 3: Cadangan Mentah & Pembersihan Draf */}
             <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
               <div className="pb-5 border-b border-slate-100">
@@ -3368,6 +3923,94 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ==================== TAB: DIAGNOSTIK SUPABASE ==================== */}
+        {activeTab === 'diagnostics' && (
+          <div className="bg-white p-7 sm:p-8 rounded-2xl border border-slate-200/80 shadow-card space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div>
+                <h3 className="font-heading font-bold text-xl text-slate-900 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-unram-900" />
+                  <span>Diagnostik Supabase & Keamanan RLS</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                  Uji menyeluruh koneksi database, kesiapan tabel, hak akses admin, storage berkas media, dan verifikasi keamanan Row Level Security (RLS).
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={isRunningDiagnostics}
+                onClick={handleRunDiagnostics}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white font-bold text-xs uppercase tracking-wider shadow-md transition-all disabled:opacity-50 flex-shrink-0"
+              >
+                {isRunningDiagnostics ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Menjalankan Uji...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Jalankan Diagnostik</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {diagnosticsResults.length === 0 ? (
+              <div className="text-center py-12 text-xs text-slate-400">
+                Klik tombol &ldquo;Jalankan Diagnostik&rdquo; di atas untuk memulai pengujian status sistem Supabase Anda.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {diagnosticsResults.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${
+                      item.status === 'success'
+                        ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                        : item.status === 'failure'
+                        ? 'bg-rose-50/60 border-rose-200 text-rose-950'
+                        : 'bg-amber-50/60 border-amber-200 text-amber-950'
+                    }`}
+                  >
+                    <div className="pt-0.5 flex-shrink-0">
+                      {item.status === 'success' ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      ) : item.status === 'failure' ? (
+                        <AlertCircle className="w-5 h-5 text-rose-600" />
+                      ) : (
+                        <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-bold text-xs">{item.name}</h4>
+                        <span
+                          className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                            item.status === 'success'
+                              ? 'bg-emerald-200/80 text-emerald-900'
+                              : item.status === 'failure'
+                              ? 'bg-rose-200/80 text-rose-900'
+                              : 'bg-amber-200/80 text-amber-900'
+                          }`}
+                        >
+                          {item.status === 'success'
+                            ? 'LULUS'
+                            : item.status === 'failure'
+                            ? 'GAGAL'
+                            : 'PERINGATAN'}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1 text-slate-600">{item.details}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         </Container>
@@ -3516,6 +4159,128 @@ export default function AdminPage() {
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Hapus Semua Draf</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Confirmation Modal */}
+      {isPublishModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 bg-unram-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Send className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-heading font-bold text-base">Konfirmasi Publikasikan Konten</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPublishModalOpen(false)}
+                className="p-1 rounded text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Tindakan ini akan menyalin seluruh draf kerja aktif ke tabel publikasi (<strong>site_content_published</strong>) dan mencatat satu entri di riwayat versi. Seluruh pengunjung website umum langsung melihat konten ini secara live.
+              </p>
+
+              {publishDiffs.length > 0 ? (
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Bagian yang mengalami perubahan dibanding publikasi sebelumnya:</span>
+                  </div>
+                  <ul className="list-disc pl-5 text-xs text-amber-950 font-medium space-y-0.5">
+                    {publishDiffs.map((diff, idx) => (
+                      <li key={idx}>{diff}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium">
+                  ✓ Draf kerja saat ini identik dengan versi publikasi sebelumnya.
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Catatan Rilis (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Update berita wisuda & penambahan MoU universitas mitra"
+                  value={publishNote}
+                  onChange={(e) => setPublishNote(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-unram-900 focus:ring-1 focus:ring-unram-900"
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isPublishing}
+                onClick={() => setIsPublishModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPublishing}
+                onClick={handleConfirmPublish}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-md transition-colors"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Mempublikasikan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Konfirmasi Publikasikan Live</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Concurrency Conflict Modal */}
+      {showConflictModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-amber-300 overflow-hidden flex flex-col">
+            <div className="px-6 py-4 bg-amber-500 text-slate-950 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-slate-950" />
+                <h3 className="font-heading font-bold text-base">Konflik Versi Terdeteksi</h3>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {conflictMsg ||
+                  'Draf di server telah diperbarui oleh pengguna lain atau tab peramban yang berbeda. Untuk mencegah data tertimpa secara tidak sengaja, silakan muat versi terbaru.'}
+              </p>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                Perubahan lokal yang belum tersimpan dapat hilang saat memuat versi terbaru server.
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleReloadLatestDraft}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-unram-900 hover:bg-unram-800 text-white text-xs font-bold shadow-md transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Muat Versi Terbaru dari Server</span>
               </button>
             </div>
           </div>

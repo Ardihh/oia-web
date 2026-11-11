@@ -24,8 +24,7 @@ import {
   Trash2,
   Check,
 } from 'lucide-react';
-import { compressImage } from '@/lib/imageCompression';
-import { saveBlobToDb } from '@/lib/db';
+import { uploadMedia } from '@/lib/supabase';
 
 interface TiptapEditorProps {
   content: string;
@@ -150,10 +149,13 @@ export function TiptapEditor({
     setCompressError(null);
 
     try {
-      const result = await compressImage(file);
-      await saveBlobToDb(result.path, result.blob, result.filename, result.blob.type);
-      setImageUrl(result.dataUrl);
-      setImagePreview(result.dataUrl);
+      const result = await uploadMedia(file, 'images');
+      if (result.success && result.publicUrl) {
+        setImageUrl(result.publicUrl);
+        setImagePreview(result.publicUrl);
+      } else {
+        setCompressError(result.error || 'Gagal mengunggah gambar ke storage');
+      }
     } catch (err: any) {
       setCompressError(err.message || 'Gagal memproses gambar');
     } finally {
