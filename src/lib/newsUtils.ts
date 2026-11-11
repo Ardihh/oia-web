@@ -2,25 +2,61 @@
  * Utility functions for News Articles CMS & Public Site
  */
 
-// Existing translation provider (MyMemory API) reused exactly as-is
+/**
+ * Translation utility with dual provider resilience:
+ * 1. Google Translate API (gtx client) - fast, handles long paragraphs, no CORS issues
+ * 2. MyMemory API - reliable secondary fallback
+ * 3. Silent error handling: never throws or triggers dev error overlays
+ */
 export async function translateText(
   text: string,
   from: 'id' | 'en',
   to: 'id' | 'en'
 ): Promise<string> {
-  if (!text || !text.trim()) return '';
+  const clean = text?.trim();
+  if (!clean) return '';
+
+  // 1. Primary: Google Translate (gtx client)
   try {
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${from}|${to}`
-    );
-    const data = await res.json();
-    if (data.responseData?.translatedText) {
-      return data.responseData.translatedText;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(clean)}`;
+    const res = await fetch(gtxUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data?.[0])) {
+        const translated = data[0].map((s: any) => s[0]).join('');
+        if (translated?.trim()) {
+          return translated.trim();
+        }
+      }
     }
-  } catch (e) {
-    console.error('Translation error:', e);
+  } catch {
+    // Silently continue to fallback provider
   }
-  return text;
+
+  // 2. Secondary: MyMemory API
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const clipped = clean.length > 450 ? clean.substring(0, 450) : clean;
+    const myMemoryUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clipped)}&langpair=${from}|${to}`;
+    const res = await fetch(myMemoryUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.responseData?.translatedText) {
+        return data.responseData.translatedText;
+      }
+    }
+  } catch {
+    // Silently continue to fallback
+  }
+
+  return clean;
 }
 
 /**
@@ -49,14 +85,16 @@ export async function translateHtml(
     return `<p>${translated}</p>`;
   }
 
-  const translatedBlocks = await Promise.all(
-    matches.map(async (block) => {
-      const cleanInnerText = block.inner.replace(/<[^>]*>/g, '').trim();
-      if (!cleanInnerText) return block.full;
-      const translatedInner = await translateText(cleanInnerText, from, to);
-      return `<${block.tag}>${translatedInner}</${block.tag}>`;
-    })
-  );
+  const translatedBlocks: string[] = [];
+  for (const block of matches) {
+    const cleanInnerText = block.inner.replace(/<[^>]*>/g, '').trim();
+    if (!cleanInnerText) {
+      translatedBlocks.push(block.full);
+      continue;
+    }
+    const translatedInner = await translateText(cleanInnerText, from, to);
+    translatedBlocks.push(`<${block.tag}>${translatedInner || cleanInnerText}</${block.tag}>`);
+  }
 
   return translatedBlocks.join('');
 }

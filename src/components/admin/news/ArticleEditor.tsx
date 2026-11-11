@@ -168,17 +168,17 @@ export function ArticleEditor({
 
       if (needsId) {
         try {
-          const [trTitle, trSummary, trContent] = await Promise.all([
-            updated.title?.id?.trim()
-              ? Promise.resolve(updated.title.id)
-              : translateText(updated.title.en, 'en', 'id'),
-            updated.summary?.id?.trim()
-              ? Promise.resolve(updated.summary.id)
-              : (updated.summary?.en ? translateText(updated.summary.en, 'en', 'id') : Promise.resolve('')),
-            (updated.content?.id && updated.content.id !== '<p></p>')
-              ? Promise.resolve(updated.content.id)
-              : (updated.content?.en ? translateHtml(updated.content.en, 'en', 'id') : Promise.resolve('<p></p>')),
-          ]);
+          const trTitle = updated.title?.id?.trim()
+            ? updated.title.id
+            : await translateText(updated.title.en, 'en', 'id');
+
+          const trSummary = updated.summary?.id?.trim()
+            ? updated.summary.id
+            : (updated.summary?.en ? await translateText(updated.summary.en, 'en', 'id') : '');
+
+          const trContent = (updated.content?.id && updated.content.id !== '<p></p>')
+            ? updated.content.id
+            : (updated.content?.en ? await translateHtml(updated.content.en, 'en', 'id') : '<p></p>');
 
           updated = {
             ...updated,
@@ -197,8 +197,25 @@ export function ArticleEditor({
               en: updated.content?.en || '<p></p>',
             },
           };
-        } catch (e) {
-          console.error('Auto translation on save error:', e);
+        } catch {
+          // Graceful fallback to English content without throwing error
+          updated = {
+            ...updated,
+            title: {
+              id: updated.title?.id?.trim() || updated.title.en,
+              en: updated.title.en,
+            },
+            summary: {
+              id: updated.summary?.id?.trim() || updated.summary?.en || '',
+              en: updated.summary?.en || '',
+            },
+            content: {
+              id: (updated.content?.id && updated.content.id !== '<p></p>')
+                ? updated.content.id
+                : (updated.content?.en || '<p></p>'),
+              en: updated.content?.en || '<p></p>',
+            },
+          };
         }
       }
     }
@@ -250,11 +267,9 @@ export function ArticleEditor({
       const summarySrc = article.summary?.[sourceLang] || '';
       const contentSrc = article.content?.[sourceLang] || '';
 
-      const [trTitle, trSummary, trContent] = await Promise.all([
-        titleSrc ? translateText(titleSrc, sourceLang, targetLang) : Promise.resolve(''),
-        summarySrc ? translateText(summarySrc, sourceLang, targetLang) : Promise.resolve(''),
-        contentSrc ? translateHtml(contentSrc, sourceLang, targetLang) : Promise.resolve('<p></p>'),
-      ]);
+      const trTitle = titleSrc ? await translateText(titleSrc, sourceLang, targetLang) : '';
+      const trSummary = summarySrc ? await translateText(summarySrc, sourceLang, targetLang) : '';
+      const trContent = contentSrc ? await translateHtml(contentSrc, sourceLang, targetLang) : '<p></p>';
 
       updateArticle({
         title: { ...article.title, [targetLang]: trTitle },
@@ -268,8 +283,7 @@ export function ArticleEditor({
       showToast(
         `Terjemahan ke ${targetLang === 'en' ? 'Bahasa Inggris' : 'Bahasa Indonesia'} berhasil diperbarui!`
       );
-    } catch (e) {
-      console.error(e);
+    } catch {
       showToast('Gagal menerjemahkan teks. Silakan coba lagi.', 'error');
     } finally {
       setIsTranslating(false);
