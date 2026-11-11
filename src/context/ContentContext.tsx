@@ -577,6 +577,19 @@ export function isSiteContentValid(data: any): boolean {
 export function ContentProvider({ children }: { children: ReactNode }) {
   const [content, setContent] = useState<SiteContent>(defaultSiteContent);
   const [isAdminPreview, setIsAdminPreview] = useState(false);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+
+  const handleExitAdminPreview = () => {
+    try {
+      sessionStorage.removeItem('unram_admin_auth');
+      localStorage.removeItem('unram_admin_auth');
+      setIsAdminPreview(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('unram_content_changed'));
+        window.location.reload();
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     // 1. Check if admin is currently authenticated in this browser session
@@ -692,18 +705,44 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   return (
     <ContentContext.Provider value={{ content, updateContent, resetContent, isAdminPreview }}>
-      {isAdminPreview && (
-        <div className="bg-amber-400 text-slate-900 px-4 py-2 text-xs font-semibold flex items-center justify-between sticky top-0 z-[60] border-b border-amber-500 shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
-            <span>Pratinjau draf, belum dipublikasikan</span>
+      {isAdminPreview && !isBannerDismissed && (
+        <div className="bg-slate-900 text-white px-4 py-2 text-xs font-medium flex items-center justify-between sticky top-0 z-[60] border-b border-slate-800 shadow-md animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-bold uppercase tracking-wider flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />
+              Mode Admin Aktif
+            </span>
+            <span className="text-slate-300 truncate hidden md:inline">
+              Menampilkan draf kerja Anda (Hanya terlihat di browser ini, bukan pengunjung umum).
+            </span>
           </div>
-          <a
-            href="/en/admin"
-            className="px-2.5 py-1 rounded bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors"
-          >
-            Buka CMS Admin
-          </a>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href="/admin"
+              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
+            >
+              Buka CMS
+            </a>
+            <button
+              type="button"
+              onClick={handleExitAdminPreview}
+              className="px-2.5 py-1 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold transition-colors"
+              title="Keluar dari sesi admin untuk melihat tampilan murni pengunjung biasa"
+            >
+              Keluar Sesi
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBannerDismissed(true)}
+              className="p-1 text-slate-400 hover:text-white rounded-md transition-colors ml-1"
+              title="Tutup banner peringatan ini"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
       {children}
