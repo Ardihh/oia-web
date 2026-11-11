@@ -167,8 +167,8 @@ export function TiptapEditor({
 
   return (
     <div className="w-full relative group">
-      {/* Minimal Sticky Toolbar */}
-      <div className="sticky top-[125px] z-20 mb-4 py-1.5 px-2 bg-white/95 backdrop-blur-xs rounded-xl border border-hairline shadow-xs flex flex-wrap items-center gap-1 transition-opacity">
+      {/* Minimal Sticky Toolbar pinned at top */}
+      <div className="sticky top-0 z-20 mb-4 py-2 px-2.5 bg-white/95 backdrop-blur-md rounded-xl border border-hairline shadow-sm flex flex-wrap items-center gap-1 transition-all">
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
