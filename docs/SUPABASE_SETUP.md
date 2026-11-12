@@ -9,105 +9,100 @@ Panduan ini berisi langkah-demi-langkah persiapan database dan penyimpanan media
 1. Buka [Supabase Dashboard](https://supabase.com/dashboard) dan pilih project Anda:
    - **URL Project**: `https://dscmuuilmrkwtuxmmyap.supabase.co`
 2. Pastikan Anda memiliki kunci publik:
-   - **Publishable Key**: `sb_publishable_Wx8MHUI4VevODX-m43atrw_UUUA9KB4`
-3. Nilai ini sudah dikonfigurasi di file `.env.local` pada repository web.
+   - **Publishable Key**: Tersedia di `.env.local`
+3. Catatan Keamanan: **Jangan pernah meminta, membuat, atau menggunakan `service_role` secret key**. Seluruh otorisasi sistem diatur oleh Row Level Security (RLS) dan fungsi `public.is_admin()`.
 
 ---
 
 ## 2. Menonaktifkan Pendaftaran Publik (*Sign-up Disabling*)
 
-Karena web ini merupakan website institusi resmi kampus, orang luar tidak boleh mendaftar sendiri sebagai pengguna:
+Karena web ini merupakan website institusi resmi kampus, pihak luar tidak diizinkan mendaftar sendiri:
 
-1. Di menu sidebar kiri Supabase, klik **Authentication** &rarr; **Configuration** (atau tab **Providers** / **Sign In / Sign Up**).
+1. Di sidebar kiri Supabase, klik **Authentication** &rarr; **Configuration** (atau **Providers** / **Sign In / Sign Up**).
 2. Temukan opsi **Allow new users to sign up** (Izinkan pendaftaran pengguna baru).
-3. Matikan / matikan centang (toggle **OFF**) pada opsi tersebut.
-4. Klik tombol **Save** di pojok kanan bawah.
+3. Matikan / nonaktifkan centang (toggle **OFF**) pada opsi tersebut.
+4. Simpan perubahan.
 
 ---
 
-## 3. Menjalankan Skrip Inisialisasi Database (SQL)
+## 3. Langkah Migrasi Database (Wajib Dilakukan Bertahap)
 
-1. Di sidebar kiri Supabase, klik **SQL Editor**.
-2. Klik tombol **New query**.
-3. Buka file [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) di text editor Anda, lalu salin (*copy*) seluruh isinya.
-4. Tempel (*paste*) ke dalam SQL Editor Supabase.
-5. Klik tombol **Run** (atau tekan `Ctrl + Enter`).
-6. Pastikan muncul pesan sukses: `Success. No rows returned`.
-
-Skrip ini secara otomatis membuat:
-- Tabel: `admin_users`, `site_content_draft`, `site_content_published`, dan `site_content_versions`.
-- Fungsi keamanan: `is_admin()` dan `publish_site_content(note)`.
-- Kebijakan Row Level Security (RLS) ketat untuk mencegah akses tanpa hak.
-- Bucket Supabase Storage: `site-media` (maksimal 10 MB, publik baca, admin tulis).
+### ⚠️ PERINGATAN: Lakukan Backup Terlebih Dahulu
+Sebelum mengeksekusi migrasi SQL apa pun di SQL Editor:
+1. Buka dashboard CMS `/admin` pada sistem yang sedang berjalan.
+2. Buka tab **Cadangan & Ekspor (Backup)** lalu unduh file cadangan JSON (`site-content-backup.json`).
+3. Simpan file cadangan tersebut di tempat yang aman.
 
 ---
 
-## 4. Membuat Akun Admin Baru
-
-1. Di sidebar kiri, klik **Authentication** &rarr; **Users**.
-2. Klik tombol hijau **Add user** di pojok kanan atas, lalu pilih **Create user**.
-3. Masukkan:
-   - **User Email**: misal `admin.oia@unram.ac.id` (atau email kerja admin yang dikehendaki).
-   - **User Password**: Masukkan kata sandi yang kuat dan aman.
-   - **Auto Confirm User**: **Centang (Check)** opsi ini agar akun langsung aktif tanpa perlu konfirmasi email SMTP.
-4. Klik **Create user**.
+### Migrasi 1: Inisialisasi Sistem Awal (`0001_init.sql` & `0002_seed_admin.sql`)
+*(Hanya jika membangun database dari awal pada project Supabase baru)*
+1. Jalankan `supabase/migrations/0001_init.sql` di SQL Editor.
+2. Daftarkan email admin di `supabase/migrations/0002_seed_admin.sql` lalu jalankan.
 
 ---
 
-## 5. Mendaftarkan Hak Akses Admin
-
-Setelah akun dibuat, daftarkan email tersebut ke tabel `admin_users` agar memiliki hak akses CMS:
-
-1. Buka kembali **SQL Editor**.
-2. Buka file [`supabase/migrations/0002_seed_admin.sql`](../supabase/migrations/0002_seed_admin.sql).
-3. Ganti `'admin.oia@unram.ac.id'` dengan email yang Anda buat pada Langkah 4:
-   ```sql
-   INSERT INTO public.admin_users (user_id, email, role)
-   SELECT id, email, 'admin'
-   FROM auth.users
-   WHERE email = 'admin.oia@unram.ac.id'
-   ON CONFLICT (user_id) DO UPDATE SET
-     email = EXCLUDED.email,
-     role = 'admin';
-   ```
-4. Klik **Run**.
+### Migrasi 2: Sistem Live Content (`0003_live_content.sql`)
+1. Buka file [`supabase/migrations/0003_live_content.sql`](../supabase/migrations/0003_live_content.sql).
+2. Salin seluruh isi skrip dan jalankan di SQL Editor Supabase.
+3. Skrip ini bersifat **ADDITIVE** (tidak menghapus data lama):
+   - Membuat tabel `site_content` dan menyalin baris dari `site_content_published` secara otomatis.
+   - Mengaktifkan trigger audit riwayat `site_content_history` (100 riwayat terakhir).
+   - Mendaftarkan RPC aman `save_site_section` dan `restore_site_content`.
+   - Mengunci penulisan langsung dari publik menggunakan RLS.
 
 ---
 
-## 6. Kueri Verifikasi Keamanan & Status
+### Migrasi 3: Pemisahan Berita ke Tabel Relasional (`0004_news_articles.sql`)
+1. Buka file [`supabase/migrations/0004_news_articles.sql`](../supabase/migrations/0004_news_articles.sql).
+2. Salin seluruh isi skrip dan jalankan di SQL Editor Supabase.
+3. Skrip ini:
+   - Membuat tabel relasional `news_articles` dan tabel revisi `news_article_revisions`.
+   - Menerapkan RLS ketat: Publik anonim HANYA bisa membaca berita dengan `status = 'published'` dan `published_at <= now()`. Draf berita **100% tertutup dan tidak dapat dibaca** via public API key.
+   - Memigrasikan berita lama dari `site_content_published->'news'` secara otomatis ke tabel baru.
 
-Jalankan kueri berikut di SQL Editor untuk memverifikasi seluruh komponen telah siap:
+---
+
+## 4. Kueri Verifikasi Keamanan & Integritas Data
+
+Jalankan kueri berikut di SQL Editor Supabase untuk memastikan seluruh migrasi berhasil 100%:
 
 ```sql
--- 1. Cek daftar admin yang terdaftar
-SELECT u.id, u.email, a.role, a.created_at
-FROM auth.users u
-JOIN public.admin_users a ON a.user_id = u.id;
-
--- 2. Cek status bucket storage
-SELECT id, name, public, file_size_limit, allowed_mime_types
-FROM storage.buckets
-WHERE id = 'site-media';
-
--- 3. Cek status RLS pada tabel
+-- 1. Cek tabel dan RLS aktif
 SELECT tablename, rowsecurity
 FROM pg_tables
 WHERE schemaname = 'public'
-  AND tablename IN ('admin_users', 'site_content_draft', 'site_content_published', 'site_content_versions');
+  AND tablename IN ('site_content', 'site_content_history', 'news_articles', 'news_article_revisions', 'admin_users');
+-- Expected: Seluruh tabel mengembalikan rowsecurity = true
+
+-- 2. Cek baris konten utama telah terisi
+SELECT id, version, updated_at
+FROM public.site_content
+WHERE id = 'main';
+
+-- 3. Cek migrasi artikel berita
+SELECT id, slug, status, published_at, title->>'id' AS judul_id
+FROM public.news_articles
+ORDER BY published_at DESC;
+
+-- 4. Verifikasi bahwa Anon TIDAK BISA membaca draf berita:
+-- Jalankan simulasi hak akses anonim:
+SET ROLE anon;
+
+-- Kueri ini HANYA boleh mengembalikan artikel yang terbit (published):
+SELECT id, slug, status FROM public.news_articles;
+
+-- Kueri ini HARUS mengembalikan 0 baris (draf tidak bocor ke publik):
+SELECT id, slug, status FROM public.news_articles WHERE status = 'draft';
+
+-- Kembalikan role ke postgres:
+RESET ROLE;
 ```
-*Hasil yang diharapkan: Seluruh `rowsecurity` bernilai `true`.*
 
 ---
 
-## 7. Mengaktifkan Multi-Factor Authentication (MFA) - *Opsional / Direkomendasikan*
+## 5. Rencana Rollback (Jika Diperlukan)
 
-Untuk keamanan ekstra pengelola website kampus:
-1. Masuk ke **Authentication** &rarr; **Policies / MFA**.
-2. Pastikan **Time-based One-time Password (TOTP)** aktif.
-3. Admin dapat menautkan aplikasi Google Authenticator saat pertama kali login jika fitur TOTP diwajibkan oleh kebijakan TI universitas.
-
----
-
-## 8. Selesai!
-
-Sekarang Anda dapat membuka `http://localhost:3000/en/admin` (atau domain produksi di server kampus), lalu login menggunakan email dan password yang telah didaftarkan.
+Karena migrasi bersifat strictly additive:
+- Tabel lama `site_content_published` dan `site_content_draft` tetap utuh.
+- Jika merge dibatalkan atau terjadi masalah tak terduga, website di branch `main` tetap membaca `site_content_published` secara normal tanpa downtime.

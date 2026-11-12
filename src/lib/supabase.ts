@@ -4,9 +4,11 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { SiteContent } from '@/context/ContentContext';
+import { SiteContent, NewsArticle } from '@/context/ContentContext';
 import { validateSiteContent } from '@/lib/schemaValidator';
 import { compressImage, computeContentHash } from '@/lib/imageCompression';
+import { slugify, getArticleSlug } from '@/lib/newsUtils';
+import { transformDbNewsRow } from '@/lib/serverContent';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY =
@@ -476,6 +478,335 @@ export async function uploadMedia(
   }
 }
 
+
+// ============================================================================
+// LIVE EDITING MODEL HELPERS (RPC save_site_section & relational news_articles)
+// ============================================================================
+
+/**
+ * Trigger ISR cache revalidation via server route handler (/api/revalidate)
+ */
+export async function triggerRevalidate(tags: string[], paths?: string[]): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return false;
+
+    const res = await fetch('/api/revalidate/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ tags, paths }),
+    });
+
+    return res.ok;
+  } catch (e) {
+    console.warn('[revalidate] Trigger failed:', e);
+    return false;
+  }
+}
+
+/**
+ * Save a single section immediately to public.site_content via RPC
+ * Optimistic concurrency: expectedVersion checks for collision
+ * On success, automatically triggers /api/revalidate for ['site-content']
+ */
+export async function saveLiveSection(
+  section: string,
+  value: any,
+  expectedVersion?: number
+): Promise<{
+  success: boolean;
+  version?: number;
+  conflict?: boolean;
+  error?: string;
+}> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { success: false, error: 'Koneksi Supabase tidak aktif' };
+  }
+
+  try {
+    // 1. Automatically sanitize and upload any embedded data: URLs to Supabase Storage
+    const cleanValue = await sanitizeAndUploadAllDataUrls(value);
+
+    // 2. Call RPC save_site_section
+    const { data, error } = await supabase.rpc('save_site_section', {
+      section,
+      value: cleanValue,
+      expected_version: expectedVersion ?? null,
+    });
+
+    if (error) {
+      const isConflict =
+        error.message?.includes('version_conflict') ||
+        error.code === 'P0004' ||
+        error.code === 'P0001';
+
+      if (isConflict) {
+        return {
+          success: false,
+          conflict: true,
+          error: 'Seseorang menyimpan perubahan lebih dulu. Muat versi terbaru sebelum menyimpan kembali.',
+        };
+      }
+      return { success: false, error: error.message };
+    }
+
+    // 3. Immediately trigger ISR cache revalidation
+    await triggerRevalidate(['site-content']);
+
+    return {
+      success: true,
+      version: data?.version,
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal menyimpan seksi' };
+  }
+}
+
+/**
+ * Fetch full live site content (sections from site_content + articles from news_articles)
+ */
+export async function getLiveContent(): Promise<{
+  content: SiteContent;
+  version: number;
+  updatedAt?: string;
+} | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  try {
+    // 1. Try public.site_content
+    const { data, error } = await supabase
+      .from('site_content')
+      .select('content, version, updated_at')
+      .eq('id', 'main')
+      .maybeSingle();
+
+    if (!error && data?.content) {
+      // Also get news articles
+      const news = await getAdminNewsArticles();
+      const fullContent: SiteContent = {
+        ...data.content,
+        news,
+        updatedAt: data.updated_at,
+      };
+      const validation = validateSiteContent(fullContent);
+      return {
+        content: validation.valid && validation.sanitizedContent ? validation.sanitizedContent : fullContent,
+        version: data.version || 1,
+        updatedAt: data.updated_at,
+      };
+    }
+  } catch (err) {
+    console.warn('Error fetching live site_content:', err);
+  }
+
+  // Fallback to legacy draft/published
+  try {
+    const draft = await getDraft();
+    if (draft) {
+      return {
+        content: draft.content,
+        version: draft.version,
+        updatedAt: draft.updatedAt,
+      };
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Fetch all news articles for admin (including drafts)
+ */
+export async function getAdminNewsArticles(): Promise<NewsArticle[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('news_articles')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data.map(transformDbNewsRow);
+    }
+  } catch (err) {
+    console.warn('Error fetching admin news_articles:', err);
+  }
+
+  // Fallback: check legacy draft
+  try {
+    const draft = await getDraft();
+    if (Array.isArray(draft?.content?.news)) {
+      return draft.content.news;
+    }
+  } catch {}
+
+  return [];
+}
+
+/**
+ * Save news article to public.news_articles
+ * Handles both new articles (insert) and updates (with version tracking)
+ * Revalidates 'news' and 'news:<slug>' tags
+ */
+export async function saveNewsArticle(
+  article: Partial<NewsArticle>
+): Promise<{ success: boolean; article?: NewsArticle; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { success: false, error: 'Koneksi Supabase tidak aktif' };
+  }
+
+  try {
+    const cleanImage = await sanitizeAndUploadAllDataUrls(article.image || '');
+    const cleanBody = await sanitizeAndUploadAllDataUrls(
+      article.content || { en: '<p></p>', id: '<p></p>' }
+    );
+
+    const slug = (article.slug && article.slug.trim()) || getArticleSlug({ title: article.title, id: article.id });
+    const isNew = !article.id || !article.id.includes('-'); // UUID check
+
+    const dbPayload: any = {
+      slug,
+      status: article.status || 'draft',
+      published_at: article.status === 'published' ? (article.publishedAt || new Date().toISOString()) : (article.publishedAt || null),
+      category: article.category,
+      author: article.author || 'OIA Team',
+      image: cleanImage,
+      image_caption: article.imageCaption || null,
+      image_credit: article.imageCredit || null,
+      title: article.title,
+      summary: article.summary,
+      body: cleanBody,
+      translation_meta: article.translationMeta || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let resultData: any;
+    if (isNew) {
+      const { data, error } = await supabase
+        .from('news_articles')
+        .insert(dbPayload)
+        .select()
+        .single();
+      if (error) return { success: false, error: error.message };
+      resultData = data;
+    } else {
+      const { data, error } = await supabase
+        .from('news_articles')
+        .update(dbPayload)
+        .eq('id', article.id)
+        .select()
+        .single();
+      if (error) return { success: false, error: error.message };
+      resultData = data;
+    }
+
+    const savedArticle = transformDbNewsRow(resultData);
+
+    // Trigger revalidation
+    await triggerRevalidate(['news', `news:${savedArticle.slug}`]);
+
+    return { success: true, article: savedArticle };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal menyimpan berita' };
+  }
+}
+
+/**
+ * Delete a news article from public.news_articles
+ */
+export async function deleteNewsArticle(
+  id: string,
+  slug?: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: 'Koneksi Supabase tidak aktif' };
+
+  try {
+    const { error } = await supabase.from('news_articles').delete().eq('id', id);
+    if (error) return { success: false, error: error.message };
+
+    const tags = ['news'];
+    if (slug) tags.push(`news:${slug}`);
+    await triggerRevalidate(tags);
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal menghapus berita' };
+  }
+}
+
+/**
+ * List revisions for a news article (up to 20)
+ */
+export async function listNewsArticleRevisions(articleId: string): Promise<any[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('news_article_revisions')
+      .select('id, article_id, revision_data, version, created_at, created_by')
+      .eq('article_id', articleId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) return [];
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * List history snapshots of site_content (up to 50)
+ */
+export async function listSiteContentHistory(): Promise<any[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('site_content_history')
+      .select('id, version, section_changed, updated_at, updated_by')
+      .order('id', { ascending: false })
+      .limit(50);
+    if (error) return [];
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Restore an archived history snapshot to live site_content via RPC
+ */
+export async function restoreSiteContentHistory(
+  historyId: number
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: 'Koneksi Supabase tidak aktif' };
+  try {
+    const { error } = await supabase.rpc('restore_site_content', {
+      p_history_id: historyId,
+    });
+    if (error) return { success: false, error: error.message };
+    await triggerRevalidate(['site-content']);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Gagal memulihkan riwayat' };
+  }
+}
+
 /**
  * Diagnostics interface and runner
  */
@@ -518,14 +849,14 @@ export async function runSupabaseDiagnostics(): Promise<DiagnosticItem[]> {
     if (draftErr || pubErr || verErr || usrErr) {
       results.push({
         id: 'tables',
-        name: 'Ketersediaan Tabel Database',
+        name: 'Ketersediaan Tabel Database (Legacy)',
         status: 'failure',
         details: `Tabel belum lengkap atau RLS memblokir: ${draftErr?.message || pubErr?.message || verErr?.message || usrErr?.message}`,
       });
     } else {
       results.push({
         id: 'tables',
-        name: 'Ketersediaan Tabel Database',
+        name: 'Ketersediaan Tabel Database (Legacy)',
         status: 'success',
         details: 'Tabel site_content_draft, site_content_published, site_content_versions, dan admin_users aktif.',
       });
@@ -533,9 +864,39 @@ export async function runSupabaseDiagnostics(): Promise<DiagnosticItem[]> {
   } catch (e: any) {
     results.push({
       id: 'tables',
-      name: 'Ketersediaan Tabel Database',
+      name: 'Ketersediaan Tabel Database (Legacy)',
       status: 'failure',
       details: e?.message || 'Gagal memeriksa tabel',
+    });
+  }
+
+  // 2b. Live Editing Tables check (0003 & 0004)
+  try {
+    const { error: liveErr } = await supabase.from('site_content').select('id').limit(1);
+    const { error: newsErr } = await supabase.from('news_articles').select('id').limit(1);
+    const { error: histErr } = await supabase.from('site_content_history').select('id').limit(1);
+
+    if (liveErr || newsErr || histErr) {
+      results.push({
+        id: 'live_tables',
+        name: 'Tabel Live Editing (site_content & news_articles)',
+        status: 'pending',
+        details: `Migrasi 0003/0004 belum dijalankan di Supabase: ${liveErr?.message || newsErr?.message || histErr?.message}. Jalankan migrasi di supabase/migrations/ sesuai docs/CUTOVER.md.`,
+      });
+    } else {
+      results.push({
+        id: 'live_tables',
+        name: 'Tabel Live Editing (site_content & news_articles)',
+        status: 'success',
+        details: 'Tabel site_content, news_articles, dan site_content_history aktif untuk pengeditan langsung (Live Editing).',
+      });
+    }
+  } catch (e: any) {
+    results.push({
+      id: 'live_tables',
+      name: 'Tabel Live Editing (site_content & news_articles)',
+      status: 'failure',
+      details: e?.message || 'Gagal memeriksa tabel live editing',
     });
   }
 

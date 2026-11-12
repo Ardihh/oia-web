@@ -1,14 +1,16 @@
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import { locales } from '@/i18n/routing';
-import { getServerSiteContent } from '@/lib/serverContent';
+import { getLiveNewsArticles, getLiveNewsArticleBySlug } from '@/lib/serverContent';
 import { getSiteUrl } from '@/lib/siteUrl';
 import { getArticleSlug } from '@/lib/newsUtils';
 import { ArticleDetailView } from '@/components/news/ArticleDetailView';
 
+// Allow newly published articles to be rendered on-demand and cached via ISR
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
-  const { content } = await getServerSiteContent();
-  const articles = Array.isArray(content?.news) ? content.news : [];
+  const articles = await getLiveNewsArticles();
   const published = articles.filter((a) => a.status !== 'draft');
 
   const params: { locale: string; slug: string }[] = [];
@@ -33,11 +35,9 @@ export async function generateMetadata({
   const { locale, slug } = await params;
   const isEn = locale === 'en';
   const siteUrl = getSiteUrl();
-  const { content } = await getServerSiteContent();
-  const articles = Array.isArray(content?.news) ? content.news : [];
 
-  const article = articles.find((a) => getArticleSlug(a) === slug || a.id === slug);
-  if (!article) {
+  const article = await getLiveNewsArticleBySlug(slug);
+  if (!article || article.status === 'draft') {
     return {
       title: isEn ? 'Article Not Found' : 'Artikel Tidak Ditemukan',
     };
@@ -104,11 +104,9 @@ export default async function NewsArticlePage({
   const isEn = locale === 'en';
   const siteUrl = getSiteUrl();
 
-  const { content } = await getServerSiteContent();
-  const articles = Array.isArray(content?.news) ? content.news : [];
-  const article = articles.find((a) => getArticleSlug(a) === slug || a.id === slug);
+  const article = await getLiveNewsArticleBySlug(slug);
 
-  if (!article) {
+  if (!article || article.status === 'draft') {
     notFound();
   }
 
@@ -119,7 +117,7 @@ export default async function NewsArticlePage({
     ? article.image
     : `${siteUrl}${article.image?.startsWith('/') ? '' : '/'}${article.image || 'images/hero-campus.jpg'}`;
 
-  // Safe JSON-LD for NewsArticle and Breadcrumbs (for search bots)
+  // Safe JSON-LD for NewsArticle and Breadcrumbs
   const newsArticleJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -170,8 +168,9 @@ export default async function NewsArticlePage({
 
   const jsonLdString = JSON.stringify([newsArticleJsonLd, breadcrumbJsonLd]).replace(/</g, '\\u003c');
 
-  const otherArticles = articles
-    .filter((a) => (getArticleSlug(a) !== slug && a.id !== article.id) && a.status !== 'draft')
+  const allArticles = await getLiveNewsArticles();
+  const otherArticles = allArticles
+    .filter((a) => getArticleSlug(a) !== slug && a.id !== article.id && a.status !== 'draft')
     .slice(0, 3);
 
   return (

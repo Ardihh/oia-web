@@ -1,14 +1,13 @@
 import type { MetadataRoute } from 'next';
 import { getSiteUrl } from '@/lib/siteUrl';
-import { getServerSiteContent } from '@/lib/serverContent';
+import { getLiveNewsArticles } from '@/lib/serverContent';
 import { SECTIONS } from '@/lib/routes';
 import { getArticleSlug } from '@/lib/newsUtils';
 
-export const dynamic = 'force-static';
+export const revalidate = 3600; // Cache sitemap for 1 hour
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = getSiteUrl();
-  const { content } = await getServerSiteContent();
   const buildDate = new Date();
 
   const entries: MetadataRoute.Sitemap = [];
@@ -49,8 +48,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  // 3. News Articles (all published articles with real lastmod)
-  const articles = Array.isArray(content?.news) ? content.news : [];
+  // 3. News Articles (all live published articles with real lastmod)
+  const articles = await getLiveNewsArticles();
   const publishedArticles = articles.filter((a) => a.status !== 'draft');
 
   for (const article of publishedArticles) {

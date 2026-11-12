@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { validateSiteContent, CURRENT_SCHEMA_VERSION } from '@/lib/schemaValidator';
 import {
   getPublishedContent,
+  getLiveContent,
   getDraft,
   checkIsAdmin,
   publish,
@@ -720,20 +721,34 @@ export function ContentProvider({
       // Public visitor mode (or view=public)
       setIsAdminPreview(false);
 
-      // Fast check: If initialContent was provided from build time and published_at is unchanged,
+      // Fast check: If initialContent was provided from build time and updated_at is unchanged,
       // skip downloading full published content to save data and speed up load
       if (initialContent && initialPublishedAt) {
         try {
           const supabase = getSupabase();
           if (supabase) {
-            const { data } = await supabase
-              .from('site_content_published')
-              .select('published_at')
+            // Check site_content first
+            const { data: liveData } = await supabase
+              .from('site_content')
+              .select('updated_at')
               .eq('id', 'main')
               .maybeSingle();
 
-            if (data?.published_at && data.published_at === initialPublishedAt) {
+            if (liveData?.updated_at && liveData.updated_at === initialPublishedAt) {
               return; // Content is fresh, no re-download needed
+            }
+
+            // Fallback check on site_content_published
+            if (!liveData) {
+              const { data: pubData } = await supabase
+                .from('site_content_published')
+                .select('published_at')
+                .eq('id', 'main')
+                .maybeSingle();
+
+              if (pubData?.published_at && pubData.published_at === initialPublishedAt) {
+                return; // Content is fresh
+              }
             }
           }
         } catch {
@@ -741,7 +756,18 @@ export function ContentProvider({
         }
       }
 
-      // 1. Primary: Read from Supabase site_content_published
+      // 1. Primary: Read from Supabase site_content (Live model)
+      try {
+        const live = await getLiveContent();
+        if (live?.content) {
+          setContent(live.content);
+          return;
+        }
+      } catch (err) {
+        console.warn('Live content fetch error, trying legacy published:', err);
+      }
+
+      // 1b. Legacy published content (pre-migration compatibility)
       try {
         const pub = await getPublishedContent();
         if (pub) {
